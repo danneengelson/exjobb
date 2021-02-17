@@ -3,6 +3,7 @@ from rclpy.node import Node
 import sensor_msgs.msg as sensor_msgs
 import std_msgs.msg as std_msgs
 import visualization_msgs.msg as visualization_msgs
+import geometry_msgs.msg as geometry_msgs
 
 import open3d as o3d
 import numpy as np
@@ -11,60 +12,31 @@ import os
 
 #Code from https://github.com/SebastianGrans/ROS2-Point-Cloud-Demo/blob/master/pcd_demo/pcd_publisher/pcd_publisher_node.py
 
-class PCDPublisher(Node):
+class PointCloud:
 
-    def __init__(self):
-        super().__init__('PCDPublisher')
-        self.pcd_publisher = self.create_publisher(visualization_msgs.Marker, 'marker', 1)
-        self.timer = self.create_timer(1, self.send_marker)
-        #as
+    def __init__(self, logger, pcd_name):
+        self.logger = logger
+        #self.filter_pointcloud2()
+
+        #pcd_path = "smallpointcloud.pcd"
+        self.logger.info("Reading point cloud file...")
+        pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_name)
+        self.points = np.unique(np.asarray(pcd.points), axis=0)
+        self.logger.info(str(self.points.shape))
+        #self.logger.info(str(self.points))
+        self.pcd = self.point_cloud(self.points, 'my_frame')
+
+        #self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2, 'pcd', 10)
+        #timer_period = 5
+
+        #self.logger.info("Start publishing point cloud")
+        #self.timer = self.create_timer(timer_period, self.marker_publisher)
+        #self.pcd_pub = self.create_timer(7, self.point_cloud_publisher)
     
-    def send_marker(self):
-        msg = visualization_msgs.Marker()
-        msg.header.frame_id = "my_frame"
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.scale.x = 1.0
-        msg.scale.y = 1.0
-        msg.scale.z = 1.0
-        msg.type = 2
-        self.pcd_publisher.publish(msg)
-        self.get_logger().info(str(msg))
-
-        '''
-        pcd_path = "out.pcd"
-        #print(os.getcwd())
-        # I use Open3D to read point clouds and meshes. It's a great library!
-        self.get_logger().info("Reading point cloud file...")
-        pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_path)
-        # I then convert it into a numpy array.
-        #print(pcd.points)
-        self.points = np.asarray(pcd.points)[0:100, :]
-        first = self.points[0,:]
-        self.points = np.asarray([p - first for p in self.points])
-        #for p in self.points:
-        #    print(p)  
-
-        print(self.points.shape)
-        print(self.points)
-        
-        # I create a publisher that publishes sensor_msgs.PointCloud2 to the 
-        # topic 'pcd'. The value '10' refers to the history_depth, which I 
-        # believe is related to the ROS1 concept of queue size. 
-        # Read more here: 
-        # http://wiki.ros.org/rospy/Overview/Publishers%20and%20Subscribers
-        self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2, 'pcd', 10)
-        timer_period = 1
-        self.timer = self.create_timer(timer_period, self.timer_callback)
-        #self.get_logger().info("hej")
-        # This rotation matrix is used for visualization purposes. It rotates
-        # the point cloud on each timer callback. 
-        #self.R = o3d.geometry.get_rotation_matrix_from_xyz([0, 0, np.pi/48])
+    
 
 
-        #self.publisher_.publish(msg)
-        #self.get_logger().info('Publishing: "%s"' % msg.data)
-        '''
-    def timer_callback(self):
+    def point_cloud_publisher(self):
         #self.get_logger().info("hej2")
         # For visualization purposes, I rotate the point cloud with self.R 
         # to make it spin. 
@@ -73,7 +45,7 @@ class PCDPublisher(Node):
         # into a sensor_msgs.PointCloud2 object. The second argument is the 
         # name of the frame the point cloud will be represented in. The default
         # (fixed) frame in RViz is called 'map'
-        self.pcd = self.point_cloud(self.points, '/map')
+        self.pcd = self.point_cloud(self.points, 'my_frame')
         #self.get_logger().info("hej6")   
         # Then I publish the PointCloud2 object 
         self.pcd_publisher.publish(self.pcd)
@@ -128,15 +100,60 @@ class PCDPublisher(Node):
             row_step=(itemsize * 3 * points.shape[0]),
             data=data
         )
-
-def main(args=None):
-    rclpy.init(args=args)
-    ros_node = PCDPublisher()
-    rclpy.spin(ros_node)
-    pcd_publisher.destroy_node()
     
-    rclpy.shutdown()
+    def filter_pointcloud(self):
+        x1 = 351463
+        x2 = 351517
+        y1 = 4022867
+        y2 = 4022914
+        z0 = 58
 
+        pcd_path = "out.pcd"
+    
+        self.get_logger().info("Reading point cloud file...")
+        pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_path, print_progress=True)
+        self.get_logger().warn("Filtering point cloud...")
 
-if __name__ == '__main__':
-    main()
+        origin = np.array([[x1,y1,z0]]) 
+        self.points = np.array([[0,0,0]]) 
+
+        all_points = np.asarray(pcd.points)
+        
+        c = np.zeros((1,2))
+        c[0,0] = (x2-x1)/2 + x1
+        c[0,1] = (y2-y1)/2 + y1
+        temp = all_points[:,:2] - np.repeat(c, all_points.shape[0], axis=0)
+        valid_idx = np.where(np.linalg.norm(temp, axis=1) < 30)
+        self.points = all_points[valid_idx] - np.array([c[0,0], c[0,1], z0])
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(self.points)
+        o3d.io.write_point_cloud(os.getcwd() + "/src/exjobb/exjobb/pointcloud.pcd", pcd)
+    
+    def filter_pointcloud2(self):
+        x1 = 0
+        x2 = 10
+        y1 = 10
+        y2 = 20
+        z0 = 0
+
+        pcd_path = os.getcwd() + "/src/exjobb/exjobb/pointcloud.pcd"
+    
+        self.get_logger().info("Reading point cloud file...")
+        pcd = o3d.io.read_point_cloud(pcd_path, print_progress=True)
+        self.get_logger().warn("Filtering point cloud...")
+
+        origin = np.array([[x1,y1,z0]]) 
+        self.points = np.array([[0,0,0]]) 
+
+        all_points = np.asarray(pcd.points)
+        
+        c = np.zeros((1,2))
+        c[0,0] = (x2-x1)/2 + x1
+        c[0,1] = (y2-y1)/2 + y1
+        temp = all_points[:,:2] - np.repeat(c, all_points.shape[0], axis=0)
+        valid_idx = np.where(np.linalg.norm(temp, axis=1) < 5)
+        self.points = all_points[valid_idx] - np.array([c[0,0], c[0,1], z0])
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(self.points)
+        o3d.io.write_point_cloud(os.getcwd() + "/src/exjobb/exjobb/smallpointcloud.pcd", pcd)
+

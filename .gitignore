@@ -1,0 +1,29 @@
+.vscode/
+Backups/
+Cache/
+CachedData/
+CachedExtensions/
+Code Cache/
+Cookies
+Cookies-journal
+Crash Reports/
+GPUCache/
+Local Storage/
+Network Persistent State
+Session Storage/
+TransportSecurity
+User/
+build/
+core
+exthost Crash Reports/
+install/
+languagepacks.json
+log/
+logs/
+machineid
+rapid_render.json
+src/exjobb/exjobb/__pycache__/
+src/exjobb/exjobb/out.pcd
+src/exjobb/exjobb/pointcloud.pcd
+src/exjobb/exjobb/smallpointcloud.pcd
+storage.json

@@ -11,6 +11,8 @@ RUN apt-get install -y ros-foxy-rviz2
 COPY ./requirements.txt /
 RUN python3 -m pip install -r /requirements.txt && rm /requirements.txt
 
+#LÄGGA IN SOURCE och Colcon build
+
 #RUN apt-get install libk4a1.4
 
 #MAN KAN BEHÖVA SKRIVA 
