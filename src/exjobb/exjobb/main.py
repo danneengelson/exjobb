@@ -11,6 +11,8 @@ import os
 
 from exjobb.PointCloud import PointCloud
 from exjobb.TerrainAssessment import TerrainAssessment
+from exjobb.TerrainAssessment2 import TerrainAssessment2
+from exjobb.TerrainAssessment3 import TerrainAssessment3
 from exjobb.ROSMessage import RED, GREEN, BLUE
 import exjobb.ROSMessage as ROSMessage
 
@@ -29,8 +31,10 @@ class MainNode(Node):
 
         self.point_cloud = PointCloud(self.get_logger(), "pointcloud.pcd")
 
-        terrain_assessment = TerrainAssessment(self.get_logger(), self.point_cloud.points)
+        terrain_assessment = TerrainAssessment3(self.get_logger(), self.point_cloud)
+        
         self.traversable_positions = terrain_assessment.analyse_terrain(start_pos)
+        
         self.get_logger().info("nbr of poses: " + str(len(self.traversable_positions)))
         #Timers:
         self.get_logger().info("Start publishing point cloud")
@@ -64,12 +68,13 @@ class MainNode(Node):
             
             #Draw normal
             stamp = self.get_clock().now().to_msg()
-            normal_arrow = ROSMessage.arrow(self.last_id, stamp, pose.center_point, pose.normal, GREEN)
+            normal_arrow = ROSMessage.arrow(self.last_id, stamp, pose.center_point, pose.normal, color)
             self.markers_msg.markers.append(normal_arrow)
             self.last_id += 1
         #self.get_logger().info("In TOTAL: " + str(len(self.markers_msg.markers)))
             self.get_logger().info("Publishing pose nr: " + str(count) + " out of " + str(len(self.traversable_positions)))
-            self.markers_publisher.publish(self.markers_msg)
+            #self.markers_publisher.publish(self.markers_msg)
+        
 
 def main(args=None):
     rclpy.init(args=args)

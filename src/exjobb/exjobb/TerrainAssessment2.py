@@ -1,7 +1,8 @@
 import numpy as np
+import open3d as o3d
 
 # TUNING VALUES:
-STEP_RESOLUTION = 1
+STEP_RESOLUTION = 3
 
 
 
@@ -12,23 +13,54 @@ class Pose:
     center_point = None
     normal = None
     traversable = True 
+    voxel_idx = None
 
 class Position:
     def __init__(self, position):
         self.position = position
 
-class TerrainAssessment():
+class TerrainAssessment2():
 
     def __init__(self, logger, pcd):
         self.logger = logger
-        self.pcd = pcd.pcd
+        self.pcd = pcd.raw_pcd
         self.points = pcd.points
         self.pcd_kdtree = pcd.kdtree
 
     def analyse_terrain(self, start_pos):
+        poses = []
+        downpcd = self.pcd.voxel_down_sample(voxel_size=STEP_RESOLUTION)
+        downpcd.estimate_normals(search_param = o3d.geometry.KDTreeSearchParamHybrid(radius=5, max_nn=1000))
+        downpcd = downpcd.normalize_normals()
+        #voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(self.pcd, voxel_size=STEP_RESOLUTION)
+        #for voxel in voxel_grid.get_voxels():
+        #    self.logger.info(str(voxel.grid_index))
+        plane_model, inliers = downpcd.segment_plane(distance_threshold=0.1,
+                                         ransac_n=3,
+                                         num_iterations=1000)
+
+        for idx, point in enumerate(np.asarray(downpcd.points)):
+            new_pose = Pose()
+            new_pose.k_nearest_points = [] #self.find_k_nearest(point, 4000)
+            new_pose.center_point = point
+            new_pose.normal = np.asarray(downpcd.normals[idx])
+            if new_pose.normal[2] < 0:
+                new_pose.normal = -new_pose.normal
+            pitch = np.math.asin(new_pose.normal[2])
+            #self.logger.info(str(pitch))
+            if pitch < np.pi/4:
+                new_pose.traversable = False
+            
+            #if idx in inliers:
+            #    new_pose.traversable = False
+
+            poses.append(new_pose)
+        '''
+        start_pos = np.array([9, 1, 2])
+        
         visited = np.array([start_pos])
         queue = np.array([start_pos])
-        poses = []
+        valid = []
 
         while queue.size:
             self.logger.info("Queue: " + str(queue.shape))
@@ -41,9 +73,18 @@ class TerrainAssessment():
                 if self.not_close_to_visited(neighbour, visited):
                     visited = np.append(visited, [neighbour], axis=0)
                     queue = np.append(queue, [neighbour], axis=0)
-
-
+        '''
+        o3d.visualization.draw_geometries([self.pcd],
+                                  zoom=0.3412,
+                                  front=[0.4257, -0.2125, -0.8795],
+                                  lookat=[2.6172, 2.0475, 1.532],
+                                  up=[-0.0694, -0.9768, 0.2024],
+                                  point_show_normal=True)
+        
+        
         return poses
+
+
 
     def get_random_poses(self):
         poses = []

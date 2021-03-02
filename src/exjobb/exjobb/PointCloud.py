@@ -21,10 +21,13 @@ class PointCloud:
         #pcd_path = "smallpointcloud.pcd"
         self.logger.info("Reading point cloud file...")
         pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_name)
-        self.points = np.unique(np.asarray(pcd.points), axis=0)
+        #self.points = np.unique(np.asarray(pcd.points), axis=0)
+        self.raw_pcd = pcd
+        self.points = np.asarray(pcd.points)
         self.logger.info(str(self.points.shape))
         #self.logger.info(str(self.points))
         self.pcd = self.point_cloud(self.points, 'my_frame')
+        self.kdtree = o3d.geometry.KDTreeFlann(pcd)
 
         #self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2, 'pcd', 10)
         #timer_period = 5
