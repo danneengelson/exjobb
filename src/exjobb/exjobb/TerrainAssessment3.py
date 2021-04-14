@@ -9,8 +9,8 @@ import timeit
 STEP_RESOLUTION = 3
 NUMBER_OF_LAYERS = 50
 GROUND_THRESHOLD = 200000
-ROBOT_SIZE = 1
-MIN_POINTS_IN_CELL = 40
+ROBOT_SIZE = 0.995
+MIN_POINTS_IN_CELL = ROBOT_SIZE*40
 ROBOT_HEIGHT = 1.5
 STEP_SIZE = 0.25 * ROBOT_SIZE
 #0.3 - bra floor 1, 0.2 - bra floor 2, 0.25 - nästan bra floor 1 för size = 1
@@ -24,8 +24,10 @@ GROUND = 1
 WALL = 2
 INCLINED = 3
 
-
-
+CROP_TUNNEL = True
+TUNNELOFFSET_X = 35
+TUNNELOFFSET_Y = 20
+    
 class Pose:
     k_nearest_points = None
     center_point = None
@@ -44,21 +46,26 @@ class TerrainAssessment3():
         self.pcd = pcd.raw_pcd
         self.points = pcd.points
         self.pcd_kdtree = pcd.kdtree
+        self.nbr_of_ground_level_points = 0
+        self.nbr_of_covered_ground_level_points = 0
+        self.nbr_of_covered_inclined_ground_level_cells = 0
+        
 
     def analyse_terrain(self, start_pos):
         start_total = timeit.default_timer()
 
         bbox = self.pcd.get_axis_aligned_bounding_box()
-        min_bounds = np.min(np.asarray(bbox.get_box_points()), axis=0)
+        self.min_bounds = np.min(np.asarray(bbox.get_box_points()), axis=0)
         max_bounds = np.max(np.asarray(bbox.get_box_points()), axis=0)
-        center_point = bbox.get_center()
-        min_x = min_bounds[0]
-        min_y = min_bounds[1]
-        min_z = min_bounds[2]
+        #center_point = bbox.get_center()
+        min_x = self.min_bounds[0]
+        min_y = self.min_bounds[1]
+        min_z = self.min_bounds[2]
         max_x = max_bounds[0]
         max_y = max_bounds[1]
         max_z = max_bounds[2] 
 
+        self.logger.info(str((self.min_bounds, max_bounds)))
 
         ######################
         # FLOOR SEGMENTATION #
@@ -68,12 +75,13 @@ class TerrainAssessment3():
         segmentized_floors = self.get_segmentized_floors(min_x, max_x, min_y, max_y, min_z, max_z)
 
         self.full_pcd = []
+        self.ground_points = np.empty((1,3))
 
-        for floor in range(len(segmentized_floors)):
+        for floor in [0, 1]: #range(len(segmentized_floors)):
 
             pcd = segmentized_floors[floor]["pcd"]
             ground_z = segmentized_floors[floor]["ground_z"]
-            ceiling_z = segmentized_floors[floor]["ceiling_z"]
+            ceiling_z = segmentized_floors[floor]["ceiling_z"]#-0.5
 
             end_floor_segmentation = timeit.default_timer()
             self.logger.info("Floor segmentation: " + str(end_floor_segmentation - start_floor_segmentation))
@@ -82,6 +90,9 @@ class TerrainAssessment3():
             ##################
             # FIND ELEVATION #
             ##################
+            if CROP_TUNNEL:
+                max_x = max_bounds[0] - TUNNELOFFSET_X
+                max_y = max_bounds[1] - TUNNELOFFSET_Y
 
             start_find_elevation = timeit.default_timer()
 
@@ -114,7 +125,7 @@ class TerrainAssessment3():
             for x_pos, x in enumerate(x_values[1:]):
                 for y_pos, y in enumerate(y_values[1:]):
                                 
-                    cell_bbox = o3d.geometry.AxisAlignedBoundingBox( [x-ROBOT_SIZE, y-ROBOT_SIZE, ground_z], [x, y, ceiling_z])
+                    #cell_bbox = o3d.geometry.AxisAlignedBoundingBox( [x-ROBOT_SIZE, y-ROBOT_SIZE, ground_z], [x, y, ceiling_z])
                     
                     #Sample down PCD
                     #start_downsample = timeit.default_timer()
@@ -124,7 +135,12 @@ class TerrainAssessment3():
                     
                     start_geom = timeit.default_timer()               
                     cell_pos = (x_pos, y_pos)
-                    cell_pcd = self.pcd.crop(cell_bbox)
+                    #cell_pcd = self.pcd.crop(cell_bbox)
+                    cell_pcd = self.get_cell_pcd(x, y, ground_z, ceiling_z)
+
+                    if cell_pcd is False:
+                        continue
+
                     cell_z_values = self.get_z_values(cell_pcd)
                     nbr_of_cell_z_values = len(cell_z_values)
 
@@ -135,7 +151,7 @@ class TerrainAssessment3():
 
                     cell_elev_z = UNKNOWN_ELEV_Z
 
-                    if nbr_of_cell_z_values < MIN_POINTS_IN_CELL*4:
+                    if nbr_of_cell_z_values < MIN_POINTS_IN_CELL:
                         continue               
                     
                     
@@ -188,12 +204,14 @@ class TerrainAssessment3():
             #############
             start_visualize = timeit.default_timer()
 
+            #self.ground_points = np.empty((1,3))
+
             for cell_pos in self.all_cells_pos_list:
                 cell_idx = int(self.cell_list_idx_grid[cell_pos])
 
                 if self.cell_classes_grid[cell_pos] == GROUND or self.cell_classes_grid[cell_pos] == INCLINED:
 
-                    self.paint_cell(cell_idx, [0,0,0])
+                    self.paint_cell(cell_idx, [0.0,0.0,0.0])
 
                     if not self.cell_elev_z_grid[cell_pos] == UNKNOWN_ELEV_Z:
                         ground_points_pcd = self.get_painted_ground_points_pcd(cell_idx, cell_pos)
@@ -203,20 +221,40 @@ class TerrainAssessment3():
                         self.all_cells_pcd_list.append(ground_points_pcd)               
                     
                 elif self.cell_classes_grid[cell_pos] == WALL:
-                    self.paint_cell(cell_idx, [1,0,0])
+                    self.paint_cell(cell_idx, [0,0,0])
 
                 elif self.cell_classes_grid[cell_pos] == UNKNOWN:
-                    self.paint_cell(cell_idx, [1,0,1])
+                    self.paint_cell(cell_idx, [0,0,0])
             
             end_visualize = timeit.default_timer() 
             self.logger.info("Visualize: " + str(end_visualize - start_visualize))
             
             self.full_pcd.extend(self.all_cells_pcd_list)
+            self.get_results()
+            #self.print_class_results()
+            
+            
+
+             
+
+
 
 
         end_total = timeit.default_timer()        
         
         self.logger.info("Total: " + str(end_total - start_total))
+
+       
+
+        #self.ground_pcd = o3d.geometry.PointCloud()
+        #self.logger.info(str(self.ground_points))
+        #self.logger.info(str(self.ground_points.shape))
+        #self.ground_pcd.points = o3d.utility.Vector3dVector(self.ground_points)
+        #self.ground_pcd.paint_uniform_color(np.array([0,0,1]))
+        #self.ground_pcd.translate([0,0,0.06])
+        
+        
+        #self.full_pcd.append(self.ground_pcd)
 
         o3d.visualization.draw_geometries(self.full_pcd,
                                   zoom=0.3412,
@@ -233,7 +271,7 @@ class TerrainAssessment3():
         directions = [(1,0), (0,1), (-1, 0), (0, -1), (1, 1), (-1,1), (-1, -1), (1, -1)]
         neighbours = []
         for dir in directions:
-            neighbour = tuple(map(operator.add,cell,dir))
+            neighbour = tuple(map(operator.add, cell, dir))
             if self.is_inside_grid(neighbour):
                 neighbours.append(neighbour)
 
@@ -253,9 +291,11 @@ class TerrainAssessment3():
             if self.is_local_maximum(idx, number_of_points_in_layers):
                 potential_maximas.append(idx-1)
 
-        #self.logger.info(str(z_values[potential_maximas]))
+        self.logger.info(str(z_values[potential_maximas]))
         #plt.plot(z_values[1:], number_of_points_in_layers)
-        #plt.ylabel('some numbers')
+        #plt.ylabel('Number of points')
+        #plt.xlabel('z-value [m]')
+        #plt.title('Number of Points on Different Heights')
         #plt.show()
         floor_levels = z_values[potential_maximas]
         floor_1 = self.pcd.crop(o3d.geometry.AxisAlignedBoundingBox( np.array([min_x, min_y, floor_levels[0] ]), [max_x, max_y, floor_levels[1]-0.5]))
@@ -351,19 +391,30 @@ class TerrainAssessment3():
         self.all_cells_pcd_list[cell_idx] = self.all_cells_pcd_list[cell_idx].paint_uniform_color(color)
     
     def get_painted_ground_points_pcd(self, cell_idx, cell_pos):
-        x = self.all_cells_pcd_list[cell_idx].get_center()[0]
-        y = self.all_cells_pcd_list[cell_idx].get_center()[1]
+        #x = self.all_cells_pcd_list[cell_idx].get_center()[0]
+        #y = self.all_cells_pcd_list[cell_idx].get_center()[1]
+        x_idx = cell_pos[0]
+        y_idx = cell_pos[1]
+        min_x = self.min_bounds[0]
+        min_y = self.min_bounds[1]
+        x = min_x + x_idx * ROBOT_SIZE + ROBOT_SIZE/2
+        y = min_y + y_idx * ROBOT_SIZE + ROBOT_SIZE/2
         z = self.cell_elev_z_grid[cell_pos]
 
         ground_level_bbox = o3d.geometry.AxisAlignedBoundingBox([x-ROBOT_SIZE/2, y-ROBOT_SIZE/2, z - 0.5], [x+ROBOT_SIZE/2, y+ROBOT_SIZE/2, z + 0.5])
         ground_level_points = self.all_cells_pcd_list[cell_idx].crop(ground_level_bbox)
         ground_level_points.translate([0,0,0.03])
 
+        if x < 29.96999931-TUNNELOFFSET_X and y < 29.70000076-TUNNELOFFSET_Y:
+            self.nbr_of_ground_level_points += np.asarray(ground_level_points.points).shape[0]
+
         if len(ground_level_points.points) > MIN_POINTS_IN_CELL:
             if self.cell_classes_grid[cell_pos] == GROUND:
-                return ground_level_points.paint_uniform_color(np.array([0,1,0]))
+                self.ground_points = np.append(self.ground_points, np.asarray(ground_level_points.points), axis=0)
+                return ground_level_points.paint_uniform_color(np.array([1,0,0]))
             elif self.cell_classes_grid[cell_pos] == INCLINED:
-                return ground_level_points.paint_uniform_color(np.array([0,1,0]))
+                self.ground_points = np.append(self.ground_points, np.asarray(ground_level_points.points), axis=0)
+                return ground_level_points.paint_uniform_color(np.array([1,1,0]))
 
         return False
 
@@ -373,7 +424,217 @@ class TerrainAssessment3():
         for idx in range(len(x_poses)):
             cell_pos = (x_poses[idx], y_poses[idx])
             ground_cells_pos_list.append( cell_pos )
+
+        x_poses, y_poses = np.where(self.cell_classes_grid == INCLINED)
+        for idx in range(len(x_poses)):
+            cell_pos = (x_poses[idx], y_poses[idx])
+            ground_cells_pos_list.append( cell_pos )
         return ground_cells_pos_list
+
+    def get_cell_pcd(self, x, y, min_z, max_z):
+        start_get_cell_pcd = timeit.default_timer()
+        z_values = np.linspace(min_z, max_z, 20)
+        
+        x_center = x-ROBOT_SIZE/2
+        y_center = y-ROBOT_SIZE/2
+        cell_points_idx = np.asarray([], dtype=np.int)
+        total_search = 0
+    
+        for z in z_values:
+            center_point = np.asarray([x_center, y_center, z])
+            radius = ROBOT_SIZE
+            [k, idx, _] = self.pcd_kdtree.search_radius_vector_3d(center_point, radius)
+            cell_points_idx = np.append(cell_points_idx, idx)
+        
+        if len(cell_points_idx):
+            cell_points_idx = np.unique(cell_points_idx)
+            cell_points = np.asarray(self.pcd.points)[cell_points_idx[1:], :]
+
+            cell_pcd = o3d.geometry.PointCloud()
+            cell_pcd.points = o3d.utility.Vector3dVector(cell_points)
+            return cell_pcd
+  
+        return False
+    
+    def print_class_results(self):
+        total = 0
+        x_poses, y_poses = np.where(self.cell_classes_grid == GROUND)
+        total+=len(x_poses)
+        self.logger.info("GROUND: " + str(len(x_poses)))
+
+        x_poses, y_poses = np.where(self.cell_classes_grid == INCLINED)
+        self.logger.info("INCLINED: " + str(len(x_poses)))
+        total+=len(x_poses)
+
+        x_poses, y_poses = np.where(self.cell_classes_grid == UNKNOWN)
+        total+=len(x_poses)
+        self.logger.info("UNKNOWN: " + str(len(x_poses)))
+        x_poses, y_poses = np.where(self.cell_classes_grid == WALL)
+        total+=len(x_poses)
+
+        self.logger.info("UNTRAVERSABLE: " + str(len(x_poses)))
+        self.logger.info("TOTAL: " + str(total))
+
+    def get_results(self):        
+        self.nbr_of_covered_inclined_ground_level_cells = 0
+        ground_cells_pos_list = self.get_ground_cells_pos_list()
+        angles = []
+        angles_pos = []
+        for ground_cell_pos in ground_cells_pos_list:
+            elev_level = self.cell_elev_z_grid[ground_cell_pos]    
+            
+
+
+            '''
+            color = [0.0, 0.0, 1.0]
+            for neigbour_pos in self.get_neighbour(ground_cell_pos):
+                if self.cell_classes_grid[neigbour_pos] == GROUND or self.cell_classes_grid[neigbour_pos] == INCLINED: 
+                    if abs(self.cell_elev_z_grid[neigbour_pos] - elev_level) > 0.24:
+                        color = [0.0, 1.0, 1.0]
+                        break
+            '''
+            #self.logger.info(str(ground_cell_pos))
+            idx_in_list = int(self.cell_list_idx_grid[ground_cell_pos])
+            #self.logger.info(str(idx_in_list))
+            pcd = self.all_cells_pcd_list[idx_in_list]
+            #self.all_cells_pcd_list[idx_in_list].paint_uniform_color(np.array([0.0,0.0,1.0]))
+            
+            xy_center = pcd.get_center()[0:2]
+
+            x_idx = ground_cell_pos[0]
+            y_idx = ground_cell_pos[1]
+            min_x = self.min_bounds[0]
+            min_y = self.min_bounds[1]
+            xy_center = (min_x + x_idx * ROBOT_SIZE + ROBOT_SIZE/2, min_y + y_idx * ROBOT_SIZE + ROBOT_SIZE/2) 
+            
+            center = np.asarray([xy_center[0], xy_center[1], elev_level])
+
+            polygon = []
+            x1 = center[0] + 0.50 * ROBOT_SIZE
+            x2 = center[0] - 0.50 * ROBOT_SIZE
+            #x2 = center[0] + 0.5 * ROBOT_SIZE
+            #x1 = center[0] - 0.5 * ROBOT_SIZE
+            #z1 = center[2] + 0.5 * ROBOT_SIZE
+            #z2 = center[2] - 0.5 * ROBOT_SIZE
+            for point in range(16):
+                angle = point/16*np.pi*2
+                y = center[1] + np.cos(angle) * ROBOT_SIZE * 0.50
+                z = center[2] + np.sin(angle) * ROBOT_SIZE * 0.50
+                
+                polygon.append(
+                    [0, y, z]
+                )
+            #polygon.append([x1, 0, z2])
+            #polygon.append([x2, 0, z2])
+            #polygon.append([x1, 0, z2])
+            #polygon.append([x1, 0, z1])
+            #polygon.append([x2, 0, z1])
+            #polygon.append([x1, 0, z1])
+            #polygon.append([x2, 0, z1])
+            #polygon.append([x2, 0, z2])
+
+            polygon_bbox = o3d.visualization.SelectionPolygonVolume()
+            polygon_bbox.orthogonal_axis = "X"
+            polygon_bbox.axis_max = float(x1)
+            polygon_bbox.axis_min = float(x2)
+            polygon_bbox.bounding_polygon = o3d.utility.Vector3dVector(np.asarray(polygon).astype("float64"))
+
+            #self.logger.info("my axis_max:" + str(y2))
+            #self.logger.info("my axis_min:" + str(y1))
+            #self.logger.info("my bounding_polygon:" + str(np.asarray(polygon_bbox.bounding_polygon)))
+            polygon_pcd = polygon_bbox.crop_point_cloud(pcd)
+
+
+            #x = center[0]
+            #y = center[1]
+            #z = center[2]
+            #ground_level_bbox = o3d.geometry.AxisAlignedBoundingBox([x-ROBOT_SIZE/2, y-ROBOT_SIZE/2, z - 0.5], [x+ROBOT_SIZE/2, y+ROBOT_SIZE/2, z + 0.5])
+            #ground_level_points = pcd.crop(ground_level_bbox)
+
+            
+            mesh_cylinder = o3d.geometry.TriangleMesh.create_cylinder(radius=ROBOT_SIZE/2,
+                                                          height=ROBOT_SIZE)
+            mesh_cylinder.compute_vertex_normals()
+            mesh_cylinder.paint_uniform_color([0.3, 0.7, 0.3])
+            mesh_cylinder.translate(center + [0.0, 0.0, 0.00])
+            R = o3d.geometry.get_rotation_matrix_from_xyz([np.pi/2, np.pi/2, 0])
+            mesh_cylinder.rotate(R, center=center)
+            #self.logger.info("my pcd: " + str(np.asarray(polygon_pcd.points).shape))
+            #self.logger.info("bbox:" + str(np.asarray(pcd.get_axis_aligned_bounding_box().get_box_points())))
+            #self.logger.info("polygon:" + str(np.asarray(polygon_bbox.bounding_polygon)))
+            #Fakse polygon:
+            #bbox_points = np.asarray(pcd.get_axis_aligned_bounding_box().get_box_points())
+            #polygon_bbox.axis_max = np.max(bbox_points[:,1])
+            #polygon_bbox.axis_min = np.min(bbox_points[:,1])
+            #bbox_points[:,1] = 0 
+            #polygon_bbox.bounding_polygon = o3d.utility.Vector3dVector(bbox_points)
+
+            #self.logger.info("fake axis_max:" + str(polygon_bbox.axis_max))
+            #self.logger.info("fake axis_min:" + str(polygon_bbox.axis_min))
+            #self.logger.info("fake bounding_polygon:" + str(np.asarray(polygon_bbox.bounding_polygon)))
+            
+            #polygon_pcd = polygon_bbox.crop_point_cloud(pcd)
+
+            polygon_pcd.paint_uniform_color([0.0,1.0,0.0])
+            polygon_pcd.translate([0.0, 0.0, 0.06], True)
+            #self.logger.info("fake pcd: " + str(np.asarray(polygon_pcd.points).shape))
+            #mesh_box = o3d.geometry.TriangleMesh.create_box(width=1.0,
+            #                                    height=1.0,
+            #                                    depth=0.05)
+            if x1 < 29.96999931-TUNNELOFFSET_X and y < 29.70000076-TUNNELOFFSET_Y:
+                self.nbr_of_covered_ground_level_points += np.asarray(polygon_pcd.points).shape[0]
+                if self.cell_classes_grid[ground_cell_pos] == INCLINED:
+                    self.nbr_of_covered_inclined_ground_level_cells += 1
+            #self.logger.info(str(center))
+            #mesh_box.compute_vertex_normals()
+            #mesh_box.paint_uniform_color(color)
+            #mesh_box.translate(center)
+            #self.full_pcd.append(polygon_pcd)
+            #self.full_pcd.append(mesh_cylinder)
+
+            #pcd.estimate_normals(search_param = o3d.geometry.KDTreeSearchParamHybrid(radius=0.5, max_nn=1000))
+            #pcd = pcd.normalize_normals()
+            #kdtree = o3d.geometry.KDTreeFlann(pcd)
+            #[k, idx, _] = kdtree.search_knn_vector_3d(center, 1)
+            #idx_in_pcd = idx[0]
+            #normal = np.asarray(pcd.normals)[idx_in_pcd]
+            #angle = np.arccos(normal[2])
+            #if angle > np.pi/2:
+            #    angle = np.pi - angle
+            #angles.append(angle)
+         
+            
+            #self.logger.info(str(np.asarray(pcd.normals)[idx_in_pcd]))
+            #self.logger.info(str(angle))
+            #closest_point = 
+            #Get pcd of cellground_cells_pos_list
+            #get center
+            #get elevation level
+            #get closest point
+            #get normal of that point
+            #get maximum inclination
+        
+        
+        part = float(self.nbr_of_covered_ground_level_points) / float(self.nbr_of_ground_level_points)
+        self.logger.info("Ground level: " + str(self.nbr_of_ground_level_points))
+        self.logger.info("Covered ground level: " + str(self.nbr_of_covered_ground_level_points))
+        self.logger.info("Percent: " + str(part))
+        self.logger.info("Inclined cells: " + str(self.nbr_of_covered_inclined_ground_level_cells))
+        '''
+        self.logger.info(str(self.ground_points[0:5]))
+        self.logger.info(str(len(self.ground_points)))
+        
+        ground_pcd_idx = np.where(self.ground_points == [0.5,0.5,0.5])
+        
+        ground_cells_pos_list = self.get_ground_cells_pos_list()
+        self.logger.info(str(np.asarray(self.pcd.colors)[0:10]))
+        ground_pcd_idx = np.where(np.asarray(self.pcd.colors) == [0.5,0.5,0.5])
+        
+        self.logger.info(str(ground_pcd_idx[0:10]))
+        self.logger.info(str(len(ground_cells_pos_list)))
+        self.logger.info(str(len(ground_pcd_idx)))
+        '''
+
 
 
             
