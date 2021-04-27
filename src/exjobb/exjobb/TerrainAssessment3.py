@@ -6,7 +6,6 @@ import collections
 import timeit
 
 # TUNING VALUES:
-STEP_RESOLUTION = 3
 NUMBER_OF_LAYERS = 50
 GROUND_THRESHOLD = 200000
 ROBOT_SIZE = 0.995
@@ -24,20 +23,9 @@ GROUND = 1
 WALL = 2
 INCLINED = 3
 
-CROP_TUNNEL = True
+CROP_TUNNEL = False
 TUNNELOFFSET_X = 35
 TUNNELOFFSET_Y = 20
-    
-class Pose:
-    k_nearest_points = None
-    center_point = None
-    normal = None
-    traversable = True 
-    voxel_idx = None
-
-class Position:
-    def __init__(self, position):
-        self.position = position
 
 class TerrainAssessment3():
 
@@ -46,12 +34,13 @@ class TerrainAssessment3():
         self.pcd = pcd.raw_pcd
         self.points = pcd.points
         self.pcd_kdtree = pcd.kdtree
+        self.traversable_points_idx = np.array([])
         self.nbr_of_ground_level_points = 0
         self.nbr_of_covered_ground_level_points = 0
         self.nbr_of_covered_inclined_ground_level_cells = 0
         
 
-    def analyse_terrain(self, start_pos):
+    def analyse_terrain(self):
         start_total = timeit.default_timer()
 
         bbox = self.pcd.get_axis_aligned_bounding_box()
@@ -65,8 +54,6 @@ class TerrainAssessment3():
         max_y = max_bounds[1]
         max_z = max_bounds[2] 
 
-        self.logger.info(str((self.min_bounds, max_bounds)))
-
         ######################
         # FLOOR SEGMENTATION #
         ######################
@@ -77,7 +64,7 @@ class TerrainAssessment3():
         self.full_pcd = []
         self.ground_points = np.empty((1,3))
 
-        for floor in [0, 1]: #range(len(segmentized_floors)):
+        for floor in [1]: #range(len(segmentized_floors)):
 
             pcd = segmentized_floors[floor]["pcd"]
             ground_z = segmentized_floors[floor]["ground_z"]
@@ -166,11 +153,12 @@ class TerrainAssessment3():
 
                     start_assign = timeit.default_timer()
 
-                    if self.is_ground_cell(cell_elev_z, ground_z):
-                        self.update_cell_in_grid(cell_pos, GROUND, cell_elev_z, len(self.all_cells_pos_list))
-                    else:
-                        self.update_cell_in_grid(cell_pos, UNKNOWN, cell_elev_z, len(self.all_cells_pos_list))
+                    #if self.is_ground_cell(cell_elev_z, ground_z):
+                    #    self.update_cell_in_grid(cell_pos, GROUND, cell_elev_z, len(self.all_cells_pos_list))
+                    #else:
+                    #    self.update_cell_in_grid(cell_pos, UNKNOWN, cell_elev_z, len(self.all_cells_pos_list))
 
+                    self.update_cell_in_grid(cell_pos, UNKNOWN, cell_elev_z, len(self.all_cells_pos_list))
                     self.add_cell_to_list(cell_pos, cell_pcd)   
 
                     end_assign = timeit.default_timer()
@@ -192,7 +180,7 @@ class TerrainAssessment3():
 
             start_breadth_first_search = timeit.default_timer()
 
-            ground_cells_pos_list = self.get_ground_cells_pos_list()
+            ground_cells_pos_list = self.get_ground_cells_pos_list(ground_z)
             self.assign_with_breadth_first(ground_cells_pos_list)
             
             end_breadth_first_search = timeit.default_timer()
@@ -214,11 +202,13 @@ class TerrainAssessment3():
                     self.paint_cell(cell_idx, [0.0,0.0,0.0])
 
                     if not self.cell_elev_z_grid[cell_pos] == UNKNOWN_ELEV_Z:
-                        ground_points_pcd = self.get_painted_ground_points_pcd(cell_idx, cell_pos)
-                        if not ground_points_pcd:
-                            continue
-                        
-                        self.all_cells_pcd_list.append(ground_points_pcd)               
+                        self.assign_traversable_points(cell_idx, cell_pos)
+
+                        #ground_points_pcd = self.get_painted_ground_points_pcd(cell_idx, cell_pos)
+                        #if not ground_points_pcd:
+                        #    continue
+                        #
+                        #self.all_cells_pcd_list.append(ground_points_pcd)               
                     
                 elif self.cell_classes_grid[cell_pos] == WALL:
                     self.paint_cell(cell_idx, [0,0,0])
@@ -230,7 +220,7 @@ class TerrainAssessment3():
             self.logger.info("Visualize: " + str(end_visualize - start_visualize))
             
             self.full_pcd.extend(self.all_cells_pcd_list)
-            self.get_results()
+            #self.get_results()
             #self.print_class_results()
             
             
@@ -256,15 +246,15 @@ class TerrainAssessment3():
         
         #self.full_pcd.append(self.ground_pcd)
 
-        o3d.visualization.draw_geometries(self.full_pcd,
-                                  zoom=0.3412,
-                                  front=[0.4257, -0.2125, -0.8795],
-                                  lookat=[2.6172, 2.0475, 1.532],
-                                  up=[-0.0694, -0.9768, 0.2024],
-                                  point_show_normal=True)
+        #o3d.visualization.draw_geometries(self.full_pcd,
+        #                          zoom=0.3412,
+        #                          front=[0.4257, -0.2125, -0.8795],
+        #                          lookat=[2.6172, 2.0475, 1.532],
+        #                          up=[-0.0694, -0.9768, 0.2024],
+        #                          point_show_normal=True)
         
         
-        return []
+        #return self.ground_points
 
 
     def get_neighbour(self, cell):
@@ -372,17 +362,52 @@ class TerrainAssessment3():
         return cell_elev_z < ground_z + STEP_SIZE
 
     def assign_with_breadth_first(self, ground_cell_pos_queue):
-        while len(ground_cell_pos_queue):
-            #self.logger.info(str(len(q)))
-            ground_pos = ground_cell_pos_queue.pop()
-            for neigbour_pos in self.get_neighbour(ground_pos):
-                
-                if self.cell_classes_grid[neigbour_pos] == UNKNOWN and self.is_traversable_from_pos(neigbour_pos, ground_pos):
-                    self.cell_classes_grid[neigbour_pos] = INCLINED
-                    ground_cell_pos_queue.append(neigbour_pos)
+        
+        all_islands = []
 
-                elif self.cell_classes_grid[neigbour_pos] == UNKNOWN:
-                    self.cell_classes_grid[neigbour_pos] = WALL
+        while len(ground_cell_pos_queue):
+            start_cell = ground_cell_pos_queue[0]
+            visited_cells = []
+            traversable_queue = [start_cell]
+            self.logger.info("Started with " + str( start_cell ))
+            while len(traversable_queue):
+                self.logger.info(str(len(traversable_queue)))
+                ground_pos = traversable_queue.pop()
+                self.logger.info(str(ground_pos))
+                for neigbour_pos in self.get_neighbour(ground_pos):
+                    
+                    if not self.is_traversable_from_pos(neigbour_pos, ground_pos):
+                        continue
+
+                    if neigbour_pos in visited_cells:
+                        continue
+
+                    visited_cells.append(neigbour_pos)
+
+                    if self.cell_classes_grid[neigbour_pos] == GROUND and self.is_traversable_from_pos(neigbour_pos, ground_pos):
+                        found_ground_cells.append(neigbour_pos)
+                        traversable_queue.append(neigbour_pos)
+
+                    elif self.cell_classes_grid[neigbour_pos] == UNKNOWN and self.is_traversable_from_pos(neigbour_pos, ground_pos):
+                        self.cell_classes_grid[neigbour_pos] = INCLINED
+                        traversable_queue.append(neigbour_pos)
+
+                    elif self.cell_classes_grid[neigbour_pos] == UNKNOWN:
+                        self.cell_classes_grid[neigbour_pos] = WALL
+                
+            all_islands.append(visited_cells)
+
+            self.logger.info("Found " + str( len(found_ground_cells) ) + " ground cells")
+            for cell in found_ground_cells:
+                try:
+                    ground_cell_pos_queue.remove(cell)
+                except:
+                    self.logger.info("Did not found " + str(cell))
+            self.logger.info("Now " + str( len(ground_cell_pos_queue) ) + " cells left in ground_cell_pos_queue")
+        
+        for island in all_islands:
+            self.logger.info(str(len(island)))
+            
 
     def is_traversable_from_pos(self, neigbour_pos, ground_pos):
         return abs(self.cell_elev_z_grid[neigbour_pos] - self.cell_elev_z_grid[ground_pos]) <= STEP_SIZE
@@ -390,6 +415,23 @@ class TerrainAssessment3():
     def paint_cell(self, cell_idx, color):
         self.all_cells_pcd_list[cell_idx] = self.all_cells_pcd_list[cell_idx].paint_uniform_color(color)
     
+    def assign_traversable_points(self, cell_idx, cell_pos):
+        x_idx = cell_pos[0]
+        y_idx = cell_pos[1]
+        min_x = self.min_bounds[0]
+        min_y = self.min_bounds[1]
+        x = min_x + x_idx * ROBOT_SIZE + ROBOT_SIZE/2
+        y = min_y + y_idx * ROBOT_SIZE + ROBOT_SIZE/2
+        z = self.cell_elev_z_grid[cell_pos]
+
+        ground_level_bbox = o3d.geometry.AxisAlignedBoundingBox([x-ROBOT_SIZE/2, y-ROBOT_SIZE/2, z - STEP_SIZE], [x+ROBOT_SIZE/2, y+ROBOT_SIZE/2, z])
+
+        points_in_cell = self.all_cells_pcd_list[cell_idx].points
+        new_traversable_points_idx = ground_level_bbox.get_point_indices_within_bounding_box(self.pcd.points)
+        if len(new_traversable_points_idx) > MIN_POINTS_IN_CELL:
+            self.traversable_points_idx = np.append(self.traversable_points_idx, new_traversable_points_idx)
+            self.nbr_of_ground_level_points += len(new_traversable_points_idx)
+
     def get_painted_ground_points_pcd(self, cell_idx, cell_pos):
         #x = self.all_cells_pcd_list[cell_idx].get_center()[0]
         #y = self.all_cells_pcd_list[cell_idx].get_center()[1]
@@ -401,9 +443,13 @@ class TerrainAssessment3():
         y = min_y + y_idx * ROBOT_SIZE + ROBOT_SIZE/2
         z = self.cell_elev_z_grid[cell_pos]
 
-        ground_level_bbox = o3d.geometry.AxisAlignedBoundingBox([x-ROBOT_SIZE/2, y-ROBOT_SIZE/2, z - 0.5], [x+ROBOT_SIZE/2, y+ROBOT_SIZE/2, z + 0.5])
+        ground_level_bbox = o3d.geometry.AxisAlignedBoundingBox([x-ROBOT_SIZE/2, y-ROBOT_SIZE/2, z - STEP_SIZE], [x+ROBOT_SIZE/2, y+ROBOT_SIZE/2, z + STEP_SIZE])
         ground_level_points = self.all_cells_pcd_list[cell_idx].crop(ground_level_bbox)
         ground_level_points.translate([0,0,0.03])
+
+        points_in_cell = self.all_cells_pcd_list[cell_idx].points
+        new_traversable_points_idx = ground_level_bbox.get_point_indices_within_bounding_box(self.pcd.points)
+        self.traversable_points_idx = np.append(self.traversable_points_idx, new_traversable_points_idx)
 
         if x < 29.96999931-TUNNELOFFSET_X and y < 29.70000076-TUNNELOFFSET_Y:
             self.nbr_of_ground_level_points += np.asarray(ground_level_points.points).shape[0]
@@ -418,9 +464,9 @@ class TerrainAssessment3():
 
         return False
 
-    def get_ground_cells_pos_list(self):
+    def get_ground_cells_pos_list(self, ground_z):
         ground_cells_pos_list = []
-        x_poses, y_poses = np.where(self.cell_classes_grid == GROUND)
+        x_poses, y_poses = np.where( self.is_ground_cell(self.cell_elev_z_grid, ground_z))
         for idx in range(len(x_poses)):
             cell_pos = (x_poses[idx], y_poses[idx])
             ground_cells_pos_list.append( cell_pos )
@@ -477,7 +523,7 @@ class TerrainAssessment3():
 
     def get_results(self):        
         self.nbr_of_covered_inclined_ground_level_cells = 0
-        ground_cells_pos_list = self.get_ground_cells_pos_list()
+        ground_cells_pos_list = self.get_ground_cells_pos_list() #THIS NEEDS TO BE CHANGED
         angles = []
         angles_pos = []
         for ground_cell_pos in ground_cells_pos_list:

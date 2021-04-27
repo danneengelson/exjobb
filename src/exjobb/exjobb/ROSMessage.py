@@ -1,5 +1,6 @@
 import visualization_msgs.msg as visualization_msgs
 import geometry_msgs.msg as geometry_msgs
+import nav_msgs.msg as nav_msgs
 import numpy as np
 
 RED = [1.0, 0.0, 0.0]
@@ -18,9 +19,9 @@ def point_marker(id, stamp, point, color):
     msg.pose.position.x = point[0]
     msg.pose.position.y = point[1]
     msg.pose.position.z = point[2]
-    msg.scale.x = 0.1
-    msg.scale.y = 0.1
-    msg.scale.z = 0.1
+    msg.scale.x = 0.5
+    msg.scale.y = 0.5
+    msg.scale.z = 0.5
     msg.color.r = color[0]
     msg.color.g = color[1]
     msg.color.b = color[2]
@@ -76,4 +77,20 @@ def arrow(id, stamp, start_point, direction, color):
     msg.color.b = color[2]
     msg.color.a = 1.0
     msg.frame_locked = True
+    return msg
+
+
+def path(waypoints):
+    msg = nav_msgs.Path()
+    msg.header.frame_id = "my_frame"
+    for point in waypoints:
+        pose_stamped = geometry_msgs.PoseStamped()
+        pose = geometry_msgs.Pose()
+        pose.position = geometry_msgs.Point()
+        pose.position.x = point[0]
+        pose.position.y = point[1]
+        pose.position.z = point[2]
+
+        pose_stamped.pose = pose
+        msg.poses.append(pose_stamped)
     return msg

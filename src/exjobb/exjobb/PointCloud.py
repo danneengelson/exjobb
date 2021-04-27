@@ -14,21 +14,32 @@ import os
 
 class PointCloud:
 
-    def __init__(self, logger, pcd_name):
+    def __init__(self, logger, file = None, points = None ):
         self.logger = logger
         #self.filter_pointcloud2()
 
         #pcd_path = "smallpointcloud.pcd"
-        self.logger.info("Reading point cloud file...")
-        pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_name)
+        if file is not None:
+            self.logger.info("Reading point cloud file...")
+            self.raw_pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + file)
+            self.points = np.asarray(self.raw_pcd.points)
+
+        elif points is not None:
+            self.raw_pcd = o3d.geometry.PointCloud()
+            self.raw_pcd.points = o3d.utility.Vector3dVector(points)
+            self.points = points
+        else:
+            self.logger.error("Missing pointcloud argument")
+            return
         #self.points = np.unique(np.asarray(pcd.points), axis=0)
-        self.raw_pcd = pcd
-        self.points = np.asarray(pcd.points)
+
+        
         self.logger.info(str(self.points.shape))
         #self.logger.info(str(self.points))
         self.pcd = self.point_cloud(self.points, 'my_frame')
-        self.kdtree = o3d.geometry.KDTreeFlann(pcd)
-
+        self.kdtree = o3d.geometry.KDTreeFlann(self.raw_pcd)
+        self.visited_points_idx = np.array([])
+        self.traversable_points_idx = np.array([])
         #self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2, 'pcd', 10)
         #timer_period = 5
 
@@ -36,8 +47,29 @@ class PointCloud:
         #self.timer = self.create_timer(timer_period, self.marker_publisher)
         #self.pcd_pub = self.create_timer(7, self.point_cloud_publisher)
     
+    def visit_point(self, point, robot_radius):
+        [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
+        self.visited_points_idx = np.append(self.visited_points_idx, idx)
+        
+        #self.logger.info("Coverage: " + str(self.get_coverage_efficiency()))
     
+    def detect_visited_points_from_path(self, visited_positions, robot_radius):
+        self.logger.info("Visiting " + str(len(visited_positions)) + " points...")
+        for position in visited_positions:
+            [k, idx, _] = self.kdtree.search_radius_vector_3d(position, robot_radius)
+            self.visited_points_idx = np.append(self.visited_points_idx, idx)
+    
+    def get_pcd_from_visited_points(self):
+        #self.logger.info(str(self.visited_points_idx))
+        self.logger.info("Creating point cloud from " + str(len(self.points[self.visited_points_idx.astype(int), :])) + " visited points...")
+        #visited_pcd = o3d.geometry.PointCloud()
+        #visited_pcd.points = o3d.utility.Vector3dVector(self.points[self.visited_points_idx.astype(int), :])
+        return self.point_cloud(self.points[self.visited_points_idx.astype(int), :], 'my_frame')
 
+    def get_coverage_efficiency(self):
+        #self.logger.info("Counting Coverage efficiency...")
+        self.visited_points_idx = np.unique(self.visited_points_idx, axis=0)
+        return len(self.visited_points_idx) / len(self.points)
 
     def point_cloud_publisher(self):
         #self.get_logger().info("hej2")
@@ -51,7 +83,7 @@ class PointCloud:
         self.pcd = self.point_cloud(self.points, 'my_frame')
         #self.get_logger().info("hej6")   
         # Then I publish the PointCloud2 object 
-        self.pcd_publisher.publish(self.pcd)
+        #self.pcd_publisher.publish(self.pcd)
         #self.get_logger().info('Publishing: "%s"' % self.pcd)
 
     def point_cloud(self, points, parent_frame):
@@ -103,6 +135,10 @@ class PointCloud:
             row_step=(itemsize * 3 * points.shape[0]),
             data=data
         )
+
+    def find_k_nearest(self, point, k):
+        [k, idx, _] = self.kdtree.search_knn_vector_3d(point, k)
+        return self.points[idx, :]
     
     def filter_pointcloud(self):
         x1 = 351463
