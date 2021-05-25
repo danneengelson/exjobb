@@ -1,0 +1,12 @@
+
+
+
+#Robot parameters
+ROBOT_SIZE = 0.5
+ROBOT_HEIGHT = 1.5
+ROBOT_STEP_SIZE = 0.25 * ROBOT_SIZE
+
+#Terrain Assessment parameters
+CELL_SIZE = ROBOT_SIZE
+Z_RESOLUTION = 0.1
+GROUND_OFFSET = 7*Z_RESOLUTION

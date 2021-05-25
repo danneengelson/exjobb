@@ -161,7 +161,7 @@ class MotionPlanner():
                 push(queue, (ncost + h, next(c), neighbor, ncost, curnode))
             
         self.print("No path found using Astar")
-        return self.astar_points[:]
+        return False
 
     def get_neighbours_for_astar(self, curnode):
         current_point = self.astar_points[curnode]

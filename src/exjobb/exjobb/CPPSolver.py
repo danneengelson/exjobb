@@ -23,6 +23,7 @@ class CPPSolver:
         self.motion_planner = MotionPlanner(logger, ground_pcd)
         self.logger = logger
         self.pcd = ground_pcd
+        self.current_position = None
     
     def start_tracking(self):
         tracemalloc.start()
@@ -72,7 +73,7 @@ class CPPSolver:
         print_text += "\nNumber of waypoints: " + str(nbr_of_points_in_path)
         print_text += "\nLength of path: " + str(round(length_of_path)) + " meter"
         print_text += "\nTotal rotation: " + str(round(rotation)) + " rad"
-        print_text += "\nComputational time: " + str(round(computational_time, 1)) + " sec"
+        print_text += "\nComputational time: " + str(round(computational_time, 1)) + " sec" 
         print_text += "\nMemory consumption: " + str(round(memory_consumption, 1)) + " KiB"
         print_text += "\n" + "=" * 20
         self.logger.info(print_text)
@@ -113,6 +114,8 @@ class CPPSolver:
             prev_point = new_point
 
         return True
+
+
 
     def print(self, object_to_print):
         self.logger.info(str(object_to_print))

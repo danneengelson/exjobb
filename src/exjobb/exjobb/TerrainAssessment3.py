@@ -5,10 +5,15 @@ import operator
 import collections
 import timeit
 
+from exjobb.FloorSegmentation import FloorSegmentation
+from exjobb.ElevationDetector import ElevationDetector
+
+
 # TUNING VALUES:
 NUMBER_OF_LAYERS = 50
 GROUND_THRESHOLD = 200000
 ROBOT_SIZE = 0.995
+CELL_SIZE = ROBOT_SIZE
 MIN_POINTS_IN_CELL = ROBOT_SIZE*40
 ROBOT_HEIGHT = 1.5
 STEP_SIZE = 0.25 * ROBOT_SIZE
@@ -29,12 +34,17 @@ TUNNELOFFSET_Y = 20
 
 class TerrainAssessment3():
 
-    def __init__(self, logger, pcd):
+    def __init__(self, logger, pcd, print):
         self.logger = logger
         self.pcd = pcd.raw_pcd
         self.points = pcd.points
         self.pcd_kdtree = pcd.kdtree
         self.traversable_points_idx = np.array([])
+        self.print = print
+
+        self.floor_segmentation = FloorSegmentation(print)
+        self.elevation_detector = ElevationDetector(print)
+
         self.nbr_of_ground_level_points = 0
         self.nbr_of_covered_ground_level_points = 0
         self.nbr_of_covered_inclined_ground_level_cells = 0
@@ -42,6 +52,28 @@ class TerrainAssessment3():
 
     def analyse_terrain(self):
         start_total = timeit.default_timer()
+
+        segmentized_floors = self.floor_segmentation.get_segmentized_floors(self.pcd)
+        for floor in segmentized_floors:
+            grid = self.make_2D_grid( floor, CELL_SIZE)
+            self.cell_elev_z_grid = self.elevation_detector.find_elevation(floor, grid, CELL_SIZE)
+            # Coordinates of all evaluated cells
+            self.all_cells_pos_list = []
+
+            # PCD of evaluated cells
+            self.all_cells_pcd_list = []
+
+            # Grid with classes
+            self.cell_classes_grid = grid
+            self.cell_classes_grid.fill(UNKNOWN)
+
+            # Grid with respective index in list
+            self.cell_list_idx_grid = grid
+
+            # Grid with elev levels
+            
+
+        return 
 
         bbox = self.pcd.get_axis_aligned_bounding_box()
         self.min_bounds = np.min(np.asarray(bbox.get_box_points()), axis=0)
@@ -166,10 +198,10 @@ class TerrainAssessment3():
             
             
 
-            self.logger.info("total_downsample: " + str(total_downsample)) 
-            self.logger.info("total_geom: " + str(total_geom))
-            self.logger.info("total_loop: " + str(total_loop))
-            self.logger.info("total_assign: " + str(total_assign)) 
+            #self.logger.info("total_downsample: " + str(total_downsample)) 
+            #self.logger.info("total_geom: " + str(total_geom))
+            #self.logger.info("total_loop: " + str(total_loop))
+            #self.logger.info("total_assign: " + str(total_assign)) 
         
             end_find_elevation = timeit.default_timer()
             self.logger.info("Find elevation: " + str(end_find_elevation - start_find_elevation))
@@ -179,7 +211,8 @@ class TerrainAssessment3():
             #################
 
             start_breadth_first_search = timeit.default_timer()
-
+            self.logger.info("ground_z: " + str(ground_z))
+            self.logger.info("cell_elev_z_grid: " + str(self.cell_elev_z_grid.shape))
             ground_cells_pos_list = self.get_ground_cells_pos_list(ground_z)
             self.assign_with_breadth_first(ground_cells_pos_list)
             
@@ -362,51 +395,47 @@ class TerrainAssessment3():
         return cell_elev_z < ground_z + STEP_SIZE
 
     def assign_with_breadth_first(self, ground_cell_pos_queue):
-        
+        self.logger.info("ground_cell_pos_queue: " + str( len(ground_cell_pos_queue) ))
+        self.cell_classes_grid[ground_cell_pos_queue] = GROUND
+        return
         all_islands = []
 
         while len(ground_cell_pos_queue):
-            start_cell = ground_cell_pos_queue[0]
-            visited_cells = []
+            start_cell = ground_cell_pos_queue.pop()
+            visited_cells = [start_cell]
             traversable_queue = [start_cell]
-            self.logger.info("Started with " + str( start_cell ))
+            #self.logger.info("Started with " + str( start_cell ))
             while len(traversable_queue):
-                self.logger.info(str(len(traversable_queue)))
+                #self.logger.info(str(len(traversable_queue)))
                 ground_pos = traversable_queue.pop()
-                self.logger.info(str(ground_pos))
+                #self.logger.info(str(ground_pos))
                 for neigbour_pos in self.get_neighbour(ground_pos):
                     
                     if not self.is_traversable_from_pos(neigbour_pos, ground_pos):
+
+                        #if self.cell_classes_grid[neigbour_pos] != GROUND:
+                        #    self.cell_classes_grid[neigbour_pos] = WALL
+
                         continue
 
                     if neigbour_pos in visited_cells:
                         continue
 
+                    if neigbour_pos in ground_cell_pos_queue:
+                        ground_cell_pos_queue.remove(neigbour_pos)
+
                     visited_cells.append(neigbour_pos)
-
-                    if self.cell_classes_grid[neigbour_pos] == GROUND and self.is_traversable_from_pos(neigbour_pos, ground_pos):
-                        found_ground_cells.append(neigbour_pos)
-                        traversable_queue.append(neigbour_pos)
-
-                    elif self.cell_classes_grid[neigbour_pos] == UNKNOWN and self.is_traversable_from_pos(neigbour_pos, ground_pos):
-                        self.cell_classes_grid[neigbour_pos] = INCLINED
-                        traversable_queue.append(neigbour_pos)
-
-                    elif self.cell_classes_grid[neigbour_pos] == UNKNOWN:
-                        self.cell_classes_grid[neigbour_pos] = WALL
+                    traversable_queue.append(neigbour_pos)
                 
             all_islands.append(visited_cells)
 
-            self.logger.info("Found " + str( len(found_ground_cells) ) + " ground cells")
-            for cell in found_ground_cells:
-                try:
-                    ground_cell_pos_queue.remove(cell)
-                except:
-                    self.logger.info("Did not found " + str(cell))
             self.logger.info("Now " + str( len(ground_cell_pos_queue) ) + " cells left in ground_cell_pos_queue")
-        
         for island in all_islands:
             self.logger.info(str(len(island)))
+        cells_in_biggest_island = max(all_islands, key=len)
+        self.logger.info("Now " + str( len(cells_in_biggest_island) ))
+        self.cell_classes_grid[cells_in_biggest_island] = GROUND
+        
             
 
     def is_traversable_from_pos(self, neigbour_pos, ground_pos):
@@ -681,6 +710,10 @@ class TerrainAssessment3():
         self.logger.info(str(len(ground_pcd_idx)))
         '''
 
+    def make_2D_grid(self, floor, resolution):
+        nbr_of_x = int(np.ceil((floor.max_x-floor.min_x) / resolution)) 
+        nbr_of_y = int(np.ceil((floor.max_y-floor.min_y) / resolution)) 
+        return np.empty((nbr_of_x, nbr_of_y))
 
 
             

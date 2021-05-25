@@ -14,13 +14,13 @@ import os
 
 class PointCloud:
 
-    def __init__(self, logger, file = None, points = None ):
-        self.logger = logger
+    def __init__(self, print, file = None, points = None ):
+        self.print = print
         #self.filter_pointcloud2()
 
         #pcd_path = "smallpointcloud.pcd"
         if file is not None:
-            self.logger.info("Reading point cloud file...")
+            self.print("Reading point cloud file...")
             self.raw_pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + file)
             self.points = np.asarray(self.raw_pcd.points)
 
@@ -29,13 +29,13 @@ class PointCloud:
             self.raw_pcd.points = o3d.utility.Vector3dVector(points)
             self.points = points
         else:
-            self.logger.error("Missing pointcloud argument")
+            self.print("Missing pointcloud argument")
             return
         #self.points = np.unique(np.asarray(pcd.points), axis=0)
 
         
-        self.logger.info(str(self.points.shape))
-        #self.logger.info(str(self.points))
+        #self.print(str(self.points.shape))
+        #self.print(str(self.points))
         self.pcd = self.point_cloud(self.points, 'my_frame')
         self.kdtree = o3d.geometry.KDTreeFlann(self.raw_pcd)
         self.visited_points_idx = np.array([])
@@ -43,7 +43,7 @@ class PointCloud:
         #self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2, 'pcd', 10)
         #timer_period = 5
 
-        #self.logger.info("Start publishing point cloud")
+        #self.print("Start publishing point cloud")
         #self.timer = self.create_timer(timer_period, self.marker_publisher)
         #self.pcd_pub = self.create_timer(7, self.point_cloud_publisher)
     
@@ -51,28 +51,49 @@ class PointCloud:
         [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
         self.visited_points_idx = np.append(self.visited_points_idx, idx)
         
-        #self.logger.info("Coverage: " + str(self.get_coverage_efficiency()))
+        #self.print("Coverage: " + str(self.get_coverage_efficiency()))
+
+    def visit_path(self, path, robot_radius):
+        for point in path:
+            [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
+            self.visited_points_idx = np.append(self.visited_points_idx, idx)
     
     def detect_visited_points_from_path(self, visited_positions, robot_radius):
-        self.logger.info("Visiting " + str(len(visited_positions)) + " points...")
+        self.print("Visiting " + str(len(visited_positions)) + " points...")
         for position in visited_positions:
             [k, idx, _] = self.kdtree.search_radius_vector_3d(position, robot_radius)
             self.visited_points_idx = np.append(self.visited_points_idx, idx)
-    
+
+    def get_visiting_rate_in_area(self, point, radius):
+        [k, idx, _] = self.kdtree.search_radius_vector_3d(point, radius)
+        total_points = len(idx)
+        nbr_of_visited = len(np.intersect1d(self.visited_points_idx, np.asarray(idx)))
+        return nbr_of_visited/total_points
+
     def get_pcd_from_visited_points(self):
-        #self.logger.info(str(self.visited_points_idx))
-        self.logger.info("Creating point cloud from " + str(len(self.points[self.visited_points_idx.astype(int), :])) + " visited points...")
+        #self.print(str(self.visited_points_idx))
+        self.print("Creating point cloud from " + str(len(self.points[self.visited_points_idx.astype(int), :])) + " visited points...")
         #visited_pcd = o3d.geometry.PointCloud()
         #visited_pcd.points = o3d.utility.Vector3dVector(self.points[self.visited_points_idx.astype(int), :])
         return self.point_cloud(self.points[self.visited_points_idx.astype(int), :], 'my_frame')
 
     def get_coverage_efficiency(self):
-        #self.logger.info("Counting Coverage efficiency...")
+        #self.print("Counting Coverage efficiency...")
         self.visited_points_idx = np.unique(self.visited_points_idx, axis=0)
         return len(self.visited_points_idx) / len(self.points)
 
+    def get_coverage_efficiency_increase_from_path(self, path, robot_radius):
+        current_coverage_efficiency = self.get_coverage_efficiency()
+        new_visited_points = np.empty((0,3))
+        for point in path:
+            [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
+            new_visited_points = np.append(new_visited_points, idx)
+        new_coverage_efficiency = len(  np.unique(np.append(self.visited_points_idx, new_visited_points))) / len(self.points)
+        
+        return new_coverage_efficiency - current_coverage_efficiency
+
     def point_cloud_publisher(self):
-        #self.get_logger().info("hej2")
+        #self.print("hej2")
         # For visualization purposes, I rotate the point cloud with self.R 
         # to make it spin. 
         #self.points = self.points @ self.R
@@ -81,10 +102,10 @@ class PointCloud:
         # name of the frame the point cloud will be represented in. The default
         # (fixed) frame in RViz is called 'map'
         self.pcd = self.point_cloud(self.points, 'my_frame')
-        #self.get_logger().info("hej6")   
+        #self.print("hej6")   
         # Then I publish the PointCloud2 object 
         #self.pcd_publisher.publish(self.pcd)
-        #self.get_logger().info('Publishing: "%s"' % self.pcd)
+        #self.print('Publishing: "%s"' % self.pcd)
 
     def point_cloud(self, points, parent_frame):
         """ Creates a point cloud message.
@@ -103,7 +124,7 @@ class PointCloud:
         # In a PointCloud2 message, the point cloud is stored as an byte 
         # array. In order to unpack it, we also include some parameters 
         # which desribes the size of each individual point.
-        #self.get_logger().info("hej3")    
+        #self.print("hej3")    
         
         ros_dtype = sensor_msgs.PointField.FLOAT32
         dtype = np.float32
@@ -111,7 +132,7 @@ class PointCloud:
 
         data = points.astype(dtype).tobytes() 
 
-        #self.get_logger().info("hej4")
+        #self.print("hej4")
         # The fields specify what the bytes represents. The first 4 bytes 
         # represents the x-coordinate, the next 4 the y-coordinate, etc.
         fields = [sensor_msgs.PointField(
@@ -122,7 +143,7 @@ class PointCloud:
         # coordinate frame it is represented in. 
         header = std_msgs.Header(frame_id=parent_frame)
 
-        #self.get_logger().info("hej5")
+        #self.print("hej5")
 
         return sensor_msgs.PointCloud2(
             header=header,
@@ -139,6 +160,14 @@ class PointCloud:
     def find_k_nearest(self, point, k):
         [k, idx, _] = self.kdtree.search_knn_vector_3d(point, k)
         return self.points[idx, :]
+
+    def distance_to_nearest(self, point):
+        nearest_point = self.find_k_nearest(point, 1)
+        return np.mean(np.linalg.norm(point - nearest_point, axis=1))
+
+    def points_idx_in_radius(self, point, radius):
+        [k, idx, _] = self.kdtree.search_radius_vector_3d(point, radius)
+        return np.asarray(idx, dtype=int)
     
     def filter_pointcloud(self):
         x1 = 351463
@@ -149,9 +178,9 @@ class PointCloud:
 
         pcd_path = "out.pcd"
     
-        self.get_logger().info("Reading point cloud file...")
+        self.print("Reading point cloud file...")
         pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_path, print_progress=True)
-        self.get_logger().warn("Filtering point cloud...")
+        self.print("Filtering point cloud...")
 
         origin = np.array([[x1,y1,z0]]) 
         self.points = np.array([[0,0,0]]) 
@@ -177,9 +206,9 @@ class PointCloud:
 
         pcd_path = os.getcwd() + "/src/exjobb/exjobb/pointcloud.pcd"
     
-        self.get_logger().info("Reading point cloud file...")
+        self.print("Reading point cloud file...")
         pcd = o3d.io.read_point_cloud(pcd_path, print_progress=True)
-        self.get_logger().warn("Filtering point cloud...")
+        self.print("Filtering point cloud...")
 
         origin = np.array([[x1,y1,z0]]) 
         self.points = np.array([[0,0,0]]) 
