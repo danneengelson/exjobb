@@ -92,6 +92,17 @@ class PointCloud:
         
         return new_coverage_efficiency - current_coverage_efficiency
 
+    def get_multiple_coverage(self, path, robot_radius):
+        
+        all_idx = np.array([], dtype=np.int)
+        for point in path:
+            [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
+            all_idx = np.append(all_idx, idx)
+
+        nodes, inv, counts = np.unique(all_idx, return_inverse=True, return_counts=True)
+        return np.mean(counts)
+        #return len(self.visited_points_idx) / len(self.points)
+
     def point_cloud_publisher(self):
         #self.print("hej2")
         # For visualization purposes, I rotate the point cloud with self.R 
@@ -163,7 +174,7 @@ class PointCloud:
 
     def distance_to_nearest(self, point):
         nearest_point = self.find_k_nearest(point, 1)
-        return np.mean(np.linalg.norm(point - nearest_point, axis=1))
+        return np.linalg.norm(point[0:2] - nearest_point[0,0:2])
 
     def points_idx_in_radius(self, point, radius):
         [k, idx, _] = self.kdtree.search_radius_vector_3d(point, radius)

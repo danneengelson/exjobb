@@ -17,6 +17,9 @@ from exjobb.NaiveRRTCPPAStar import NaiveRRTCPPAstar
 from exjobb.BoustrophedonCPP import BoustrophedonCPP
 from exjobb.BAstar import BAstar
 from exjobb.RobotTraversability import RobotTraversability
+from exjobb.Spiral import Spiral
+from exjobb.RandomSample import RandomSample
+
 from exjobb.ROSMessage import RED, GREEN, BLUE
 import exjobb.ROSMessage as ROSMessage
 
@@ -28,7 +31,7 @@ PUBLISH_MARKERS = True
 PUBLISH_PATH = True
 PUBLISH_PATH_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
-PUBLISH_VISITED_GROUND_PCD = True
+PUBLISH_VISITED_GROUND_PCD = False
 PUBLISH_TRAVERSABLE_PCD = True
 
 MOTION_PLANNER_TEST = False
@@ -57,7 +60,8 @@ class MainNode(Node):
 
         #start_pos = [ 0.2,  2.7, -5.3]
         start_pos = [ -5.2,  -12.7, -10.3]
-        end_pos = [ -3.2,  2.7, -5.3]
+        end_pos = [ -3.2,  1.7, -5.3]
+        #end_pos = [ 1.3,  -0.3, -5.3]
         #start_pos = [ 1.69000006, 19. ,        -5.26468706]
         #end_pos = [ 1.15999997, 20.29999924 , -5.28468704]
 
@@ -67,7 +71,7 @@ class MainNode(Node):
         #pcd_pub = self.create_timer(timer_period, self.point_cloud_publisher)
         #return
 
-        motion_planner_pcd = self.point_cloud
+        
 
         if DO_TERRAIN_ASSESSMENT:       
             terrain_assessment = TerrainAssessment(self.get_logger(), self.point_cloud, self.print)
@@ -101,7 +105,8 @@ class MainNode(Node):
 
         self.traversable_point_cloud = PointCloud(self.print, points= traversable_points_for_robot)
         
-        motion_planner_pcd = self.traversable_point_cloud
+        traversable_pcd = self.traversable_point_cloud
+        motion_planner = MotionPlanner(self.get_logger(), traversable_pcd)
         
         if PUBLISH_GROUND_PCD:
             ground_pcd_pub = self.create_timer(timer_period, self.ground_point_cloud_publisher)           
@@ -117,14 +122,16 @@ class MainNode(Node):
         self.markers.append( {"point": end_point, "color": BLUE} )
 
         if MOTION_PLANNER_TEST:
-            self.motion_planner = MotionPlanner(self.get_logger(), motion_planner_pcd)
-            self.path = self.motion_planner.RRT(start_point, end_point)
+            
+            self.path = motion_planner.Astar(start_point, end_point)
+            self.points_to_mark = np.array([start_point, end_point])
+            #self.print(self.points_to_mark)
             if self.path is False:
                 self.path = []
 
 
         if CPP_TEST:
-            self.cpp = BAstar(self.get_logger(), motion_planner_pcd)
+            self.cpp = RandomSample(self.get_logger(), motion_planner)
             self.path = self.cpp.get_cpp_path(end_pos)            
             self.points_to_mark = self.cpp.get_points_to_mark()
 
@@ -199,7 +206,9 @@ class MainNode(Node):
     def clicked_point_cb(self, msg):
         self.print(msg)
         point = np.array([msg.point.x, msg.point.y, msg.point.z])
-        self.robot_traversability.get_info(point)
+        self.print(self.traversable_point_cloud.distance_to_nearest(point))
+        
+        #self.robot_traversability.get_info(point)
 
     def print(self, object_to_print):
         self.get_logger().info(str(object_to_print))

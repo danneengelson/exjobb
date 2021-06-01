@@ -6,7 +6,7 @@ import operator
 import collections
 import timeit
 import networkx as nx
-
+from numba import njit
 
 from heapq import heappush, heappop
 from itertools import count
@@ -32,6 +32,10 @@ class MotionPlanner():
     def __init__(self, logger, ground_pcd):
         self.logger = logger
         self.pcd = ground_pcd
+
+        self.distance_to_nearest = 0
+        self.nbr_of_steps_time = 0
+        self.norm = 0
 
     def RRT(self, start_point, end_point):
         tree_a = Tree(name="start")
@@ -94,6 +98,8 @@ class MotionPlanner():
 
     def Astar(self, start_point, end_point):
 
+        
+        
         self.astar_points = np.array([start_point, end_point])
         start = 0
         target = 1
@@ -125,8 +131,8 @@ class MotionPlanner():
                     path.append(node)
                     node = explored[node]
                 path.reverse()
-                #self.print(path)
-                return self.astar_points[path]
+                astar_spt_path = self.AstarSPT(self.astar_points[path])
+                return astar_spt_path
 
             if curnode in explored:
                 # Do not override the parent of starting node
@@ -163,10 +169,35 @@ class MotionPlanner():
         self.print("No path found using Astar")
         return False
 
+    def AstarSPT(self, path):
+        #self.print(path)
+        k = 0
+        n = len(path)
+        start_point = path[0]
+        smooth_path = np.array([start_point])
+        point_k = start_point
+        goal = path[-1]
+        while not np.array_equal(point_k, goal):
+            for i in reversed(range(k+1, n)):
+                from_point = point_k
+                to_point = path[i]
+                if self.is_valid_step(from_point, to_point):
+                    smooth_path = np.append(smooth_path, [to_point], axis=0)
+                    point_k = to_point
+                    k = i
+                    break
+                    
+            if k != i:
+                smooth_path = np.append(smooth_path, [path[k+1]], axis=0)
+                k += 1
+                point_k = path[k]   
+            
+        return smooth_path
+
     def get_neighbours_for_astar(self, curnode):
         current_point = self.astar_points[curnode]
         neighbours = {}
-        nbr_of_neighbours = 4
+        nbr_of_neighbours = 8
 
         for direction in range(nbr_of_neighbours):
             angle = direction/nbr_of_neighbours*np.pi*2
@@ -213,28 +244,44 @@ class MotionPlanner():
         line_of_sight = goal - start
         return line_of_sight / np.linalg.norm(line_of_sight)
     
+
     def is_valid_step(self, from_point, to_point):
+
+        
         total_step_size = np.linalg.norm(to_point - from_point)
+        
+
+        if total_step_size == 0:
+            return False
+
         if total_step_size <= STEP_SIZE:
+            #self.print("total_step_size")
             return True
 
+        
         nbr_of_steps = int(np.floor(total_step_size / STEP_SIZE))
-
+        direction = self.get_direction_vector(from_point, to_point) * STEP_SIZE
          
         prev_point = from_point
         for step in range(nbr_of_steps):
-            end_pos = prev_point + self.get_direction_vector(prev_point, to_point) * STEP_SIZE
-            new_point = self.new_point_towards(prev_point, end_pos, STEP_SIZE)
+            end_pos = prev_point + direction
 
-            if np.linalg.norm(new_point - prev_point) > UNTRAVERSABLE_THRESHHOLD:
+            distance_to_nearest = timeit.default_timer()
+            if self.pcd.distance_to_nearest(end_pos) > 0.2:
+                self.distance_to_nearest += timeit.default_timer() - distance_to_nearest
                 return False
+            self.distance_to_nearest += timeit.default_timer() - distance_to_nearest
 
-            if np.array_equal(new_point, to_point):
-                return True
+            prev_point = end_pos
 
-            prev_point = new_point
+            continue
 
         return True
     
     def print(self, object_to_print):
         self.logger.info(str(object_to_print))
+
+    def print_times(self):
+        self.print("distance_to_nearest" + str(self.distance_to_nearest))
+        self.print("nbr_of_steps_time" + str(self.nbr_of_steps_time))
+        self.print("norm" + str(self.norm))
