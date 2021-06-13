@@ -7,9 +7,9 @@ from numba import njit
 
 from exjobb.CPPSolver import CPPSolver, ROBOT_RADIUS, STEP_SIZE
 from exjobb.MotionPlanner import MotionPlanner
-CELL_STEP_SIZE = 1.25*ROBOT_RADIUS
-VISITED_TRESHOLD = 0.8*ROBOT_RADIUS
-COVEREAGE_EFFICIENCY_GOAL = 0.95
+CELL_STEP_SIZE = STEP_SIZE #1.25*ROBOT_RADIUS
+VISITED_TRESHOLD = 0.66*STEP_SIZE #0.8*ROBOT_RADIUS
+COVEREAGE_EFFICIENCY_GOAL = 0.1
 MAX_ITERATIONS = 10000
 
 TRAPPED = 0
@@ -27,12 +27,8 @@ class BAstar(CPPSolver):
     def get_cpp_path(self, start_point):
         self.start_tracking()
         coverage = 0
-        self.path = np.array([start_point])
+        self.move_to(start_point)
         self.starting_point_list = np.array([start_point])
-
-
-        self.pcd.visit_point(start_point, ROBOT_RADIUS)
-
 
         starting_point = start_point
         current_position = start_point
@@ -101,15 +97,7 @@ class BAstar(CPPSolver):
                 break
             
             rest = timeit.default_timer()
-            self.path = np.append( self.path, path_to_next_starting_point, axis=0 )
-            self.pcd.visit_path(path_to_next_starting_point, ROBOT_RADIUS)
-            #path_to_next_starting_point = [next_starting_point]
-            
-
-            #self.starting_point_list = np.append(self.starting_point_list, [self.path[-1]], axis=0 )
-            
-            #self.print("next_starting_point" + str(next_starting_point))
-            #self.print("path" + str(self.path))
+            self.follow_path(path_to_next_starting_point)
             
             starting_point = next_starting_point
             

@@ -33,22 +33,25 @@ class RobotTraversability():
         not_ground_points_idx_queue = not_ground_points_idx
         
         while len(not_ground_points_idx_queue) > 0: 
+            self.print(len(not_ground_points_idx_queue))
             
             not_ground_point_idx, not_ground_points_idx_queue = not_ground_points_idx_queue[0], not_ground_points_idx_queue[1:]
             
             point = self.pcd.points[not_ground_point_idx]
             distance_to_nearest = self.ground_point_cloud.distance_to_nearest(point)
             
-            if distance_to_nearest > 0.25 and distance_to_nearest < 0.75:
-                
-                points_nearby = self.pcd.points_idx_in_radius(point, 0.75)
-                traversable_points = self.delete_values(traversable_points, points_nearby)
-                points_close_nearby = self.pcd.points_idx_in_radius(point, 0.25)
 
+
+
+
+            if distance_to_nearest > 0.25 and distance_to_nearest < ROBOT_SIZE:                
+                points_nearby = self.pcd.points_idx_in_radius(point, 1.5*ROBOT_SIZE)
+                traversable_points = self.delete_values(traversable_points, points_nearby)
+                points_close_nearby = self.pcd.points_idx_in_radius(point, ROBOT_SIZE/2)
             elif distance_to_nearest <= 0.25:
-                points_close_nearby = self.pcd.points_idx_in_radius(point, distance_to_nearest)
+                points_close_nearby = self.pcd.points_idx_in_radius(point, 0.25)
             else:
-                points_close_nearby = self.pcd.points_idx_in_radius(point, distance_to_nearest-0.5)
+                points_close_nearby = self.pcd.points_idx_in_radius(point, distance_to_nearest-ROBOT_SIZE)
 
             not_ground_points_idx_queue = self.delete_values(not_ground_points_idx_queue, points_close_nearby)
 

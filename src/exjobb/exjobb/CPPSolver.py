@@ -12,8 +12,9 @@ import linecache
 
 from networkx.algorithms.shortest_paths.weighted import _weight_function
 from exjobb.MotionPlanner import MotionPlanner
-ROBOT_RADIUS = 1
-STEP_SIZE = 0.3
+from exjobb.Parameters import ROBOT_SIZE, ROBOT_STEP_SIZE
+ROBOT_RADIUS = ROBOT_SIZE/2
+STEP_SIZE = ROBOT_SIZE
 UNTRAVERSABLE_THRESHHOLD = 1.5*STEP_SIZE
 
 class CPPSolver:
@@ -24,7 +25,10 @@ class CPPSolver:
         self.pcd = motion_planner.pcd
         self.motion_planner = motion_planner
         self.current_position = None
+        self.path = np.empty((0,3))
     
+    
+
     def start_tracking(self):
         tracemalloc.start()
         self.start_time = timeit.default_timer()
@@ -84,7 +88,13 @@ class CPPSolver:
         self.logger.info(print_text)
 
 
+    def follow_path(self, path):
+        self.path = np.append( self.path, path, axis=0 )
+        self.pcd.visit_path(path, ROBOT_RADIUS)
 
+    def move_to(self, point):
+        self.path = np.append( self.path, [point], axis=0 )
+        self.pcd.visit_point(point, ROBOT_RADIUS)
 
     def print(self, object_to_print):
         self.logger.info(str(object_to_print))

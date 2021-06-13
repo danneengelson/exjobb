@@ -20,6 +20,7 @@ from exjobb.RobotTraversability import RobotTraversability
 from exjobb.Spiral import Spiral
 from exjobb.RandomSample import RandomSample
 
+from exjobb.Parameters import ROBOT_SIZE, ROBOT_STEP_SIZE
 from exjobb.ROSMessage import RED, GREEN, BLUE
 import exjobb.ROSMessage as ROSMessage
 
@@ -27,9 +28,9 @@ DO_TERRAIN_ASSESSMENT = False
 DO_ROBOT_TRAVERSABILITY = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
-PUBLISH_MARKERS = True
-PUBLISH_PATH = True
-PUBLISH_PATH_ANIMATION = False
+PUBLISH_MARKERS = False
+PUBLISH_PATH = False
+PUBLISH_PATH_ANIMATION = True
 PUBLISH_VISITED_PCD = False 
 PUBLISH_VISITED_GROUND_PCD = False
 PUBLISH_TRAVERSABLE_PCD = True
@@ -58,12 +59,9 @@ class MainNode(Node):
         #Subscribers:
         self.rviz_sub = self.create_subscription(geometry_msgs.PointStamped, "clicked_point", self.clicked_point_cb, 100)
 
-        #start_pos = [ 0.2,  2.7, -5.3]
         start_pos = [ -5.2,  -12.7, -10.3]
         end_pos = [ -3.2,  1.7, -5.3]
-        #end_pos = [ 1.3,  -0.3, -5.3]
-        #start_pos = [ 1.69000006, 19. ,        -5.26468706]
-        #end_pos = [ 1.15999997, 20.29999924 , -5.28468704]
+
 
         self.point_cloud = PointCloud(self.print, file="pointcloud.pcd")
         
@@ -71,38 +69,10 @@ class MainNode(Node):
         #pcd_pub = self.create_timer(timer_period, self.point_cloud_publisher)
         #return
 
-        
-
-        if DO_TERRAIN_ASSESSMENT:       
-            terrain_assessment = TerrainAssessment(self.get_logger(), self.point_cloud, self.print)
-            terrain_assessment.analyse_terrain()
-
-            ground_points_idx = np.unique(terrain_assessment.traversable_points_idx).astype(int)
-            traversable_points = self.point_cloud.points[ground_points_idx]
-
-            with open('cached_traversable_points.dictionary', 'wb') as cached_pcd_file:
-                cache_data = {"traversable_points": traversable_points, "ground_points_idx": ground_points_idx}
-                pickle.dump(cache_data, cached_pcd_file)
-
-        else:
-            with open('cached_traversable_points.dictionary', 'rb') as cached_pcd_file:
-                cache_data = pickle.load(cached_pcd_file)
-                traversable_points = cache_data["traversable_points"]
-                ground_points_idx = cache_data["ground_points_idx"]
-        
+        traversable_points, ground_points_idx = self.do_terrain_assessment()        
         self.ground_point_cloud = PointCloud(self.print, points= traversable_points)
 
-        if DO_ROBOT_TRAVERSABILITY:
-            self.robot_traversability = RobotTraversability(self.print, self.point_cloud)
-            traversable_points_for_robot = self.robot_traversability.get_traversable_points_for_robot_idx(ground_points_idx)
-            with open('cached_traversable_points_for_robot.dictionary', 'wb') as cached_pcd_file:
-                cache_data = {"traversable_points_for_robot": traversable_points_for_robot}
-                pickle.dump(cache_data, cached_pcd_file)
-        else:
-            with open('cached_traversable_points_for_robot.dictionary', 'rb') as cached_pcd_file:
-                cache_data = pickle.load(cached_pcd_file)
-                traversable_points_for_robot = cache_data["traversable_points_for_robot"]
-
+        traversable_points_for_robot = self.do_robot_traversability(ground_points_idx)
         self.traversable_point_cloud = PointCloud(self.print, points= traversable_points_for_robot)
         
         traversable_pcd = self.traversable_point_cloud
@@ -122,16 +92,13 @@ class MainNode(Node):
         self.markers.append( {"point": end_point, "color": BLUE} )
 
         if MOTION_PLANNER_TEST:
-            
             self.path = motion_planner.Astar(start_point, end_point)
             self.points_to_mark = np.array([start_point, end_point])
-            #self.print(self.points_to_mark)
             if self.path is False:
                 self.path = []
 
-
         if CPP_TEST:
-            self.cpp = RandomSample(self.get_logger(), motion_planner)
+            self.cpp = BAstar(self.get_logger(), motion_planner)
             self.path = self.cpp.get_cpp_path(end_pos)            
             self.points_to_mark = self.cpp.get_points_to_mark()
 
@@ -144,20 +111,56 @@ class MainNode(Node):
         if PUBLISH_PATH:
             path_pub = self.create_timer(timer_period, self.path_publisher)
 
-        
-
         if PUBLISH_VISITED_PCD:
-            self.point_cloud.detect_visited_points_from_path(self.path, robot_radius = 1)
+            self.point_cloud.detect_visited_points_from_path(self.path, robot_radius = ROBOT_SIZE/2)
             self.visited_points_pcd = self.point_cloud.get_pcd_from_visited_points()
             visited_pcd_pub = self.create_timer(timer_period, self.visited_point_cloud_publisher)
         
         if PUBLISH_VISITED_GROUND_PCD:
-            self.ground_point_cloud.detect_visited_points_from_path(self.path, robot_radius = 1)
+            self.ground_point_cloud.detect_visited_points_from_path(self.path, robot_radius = ROBOT_SIZE/2)
             self.visited_ground_points_pcd = self.ground_point_cloud.get_pcd_from_visited_points()
             visited_ground_pcd_pub = self.create_timer(timer_period, self.visited_ground_point_cloud_publisher)
 
         if PUBLISH_PATH_ANIMATION:
+            self.ground_point_cloud.visited_points_idx = np.array([])
             path_pub = self.create_timer(animation_time_period, self.animated_path_publisher)
+
+
+    def do_robot_traversability(self, ground_points_idx):
+        if DO_ROBOT_TRAVERSABILITY:
+            self.robot_traversability = RobotTraversability(self.print, self.point_cloud)
+            traversable_points_for_robot = self.robot_traversability.get_traversable_points_for_robot_idx(ground_points_idx)
+            with open('cached_traversable_points_for_robot.dictionary', 'wb') as cached_pcd_file:
+                cache_data = {"traversable_points_for_robot": traversable_points_for_robot}
+                pickle.dump(cache_data, cached_pcd_file)
+        else:
+            with open('cached_traversable_points_for_robot.dictionary', 'rb') as cached_pcd_file:
+                cache_data = pickle.load(cached_pcd_file)
+                traversable_points_for_robot = cache_data["traversable_points_for_robot"]
+
+        return traversable_points_for_robot
+
+    
+    def do_terrain_assessment(self):
+        if DO_TERRAIN_ASSESSMENT:       
+            terrain_assessment = TerrainAssessment(self.get_logger(), self.point_cloud, self.print)
+            terrain_assessment.analyse_terrain()
+
+            ground_points_idx = np.unique(terrain_assessment.traversable_points_idx).astype(int)
+            traversable_points = self.point_cloud.points[ground_points_idx]
+
+            with open('cached_traversable_points.dictionary', 'wb') as cached_pcd_file:
+                cache_data = {"traversable_points": traversable_points, "ground_points_idx": ground_points_idx}
+                pickle.dump(cache_data, cached_pcd_file)
+
+        else:
+            with open('cached_traversable_points.dictionary', 'rb') as cached_pcd_file:
+                cache_data = pickle.load(cached_pcd_file)
+                traversable_points = cache_data["traversable_points"]
+                ground_points_idx = cache_data["ground_points_idx"]
+        
+        return traversable_points, ground_points_idx
+
     
     def point_cloud_publisher(self):
         self.pcd_pub.publish(self.point_cloud.pcd)
@@ -187,6 +190,11 @@ class MainNode(Node):
 
         path_msg = ROSMessage.path(self.path[0:self.animation_iteration])
         self.path_pub.publish(path_msg)
+
+        point = self.path[self.animation_iteration]
+        self.ground_point_cloud.visit_point(point, ROBOT_SIZE/2)
+        self.visited_ground_points_pcd = self.ground_point_cloud.get_pcd_from_visited_points()
+        self.visited_ground_point_cloud_publisher()
 
     def marker_publisher(self):
         self.markers_msg = visualization_msgs.MarkerArray()

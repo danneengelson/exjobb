@@ -2,13 +2,11 @@ import numpy as np
 import open3d as o3d
 import timeit
 
-from exjobb.Parameters import CELL_SIZE
-from exjobb.Parameters import Z_RESOLUTION
+from exjobb.Parameters import CELL_SIZE, Z_RESOLUTION, ROBOT_HEIGHT
 
 #Density to count as valid: a cluster with at least 1 point per 5cm² -> 400/m^2
 CELL_AREA = CELL_SIZE * CELL_SIZE
 MIN_POINTS_IN_CELL = CELL_AREA * 100
-ROBOT_HEIGHT = 1.5
 UNKNOWN_ELEV_Z = -100 
 
 class ElevationDetector:

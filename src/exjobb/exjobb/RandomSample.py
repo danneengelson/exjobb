@@ -1,3 +1,4 @@
+from os import replace
 from exjobb.Tree import Tree
 import numpy as np
 from collections import deque
@@ -5,9 +6,12 @@ import networkx as nx
 import timeit
 from numba import njit
 import open3d as o3d 
-
+import pickle
 from exjobb.CPPSolver import CPPSolver, ROBOT_RADIUS, STEP_SIZE
 from exjobb.MotionPlanner import MotionPlanner
+
+DO_GET_WAYPOINTS = False
+
 CELL_STEP_SIZE = 1*ROBOT_RADIUS
 VISITED_TRESHOLD = 0.99*ROBOT_RADIUS
 COVEREAGE_EFFICIENCY_GOAL = 0.95
@@ -31,33 +35,77 @@ class RandomSample(CPPSolver):
         self.path = np.array([start_point])
         self.points_to_mark = np.array([start_point])
         self.pcd.visit_point(start_point, ROBOT_RADIUS)
-        corners = self.detect_biggest_square_plane(start_point)
-        self.points_to_mark = corners
-
-        k_coverage_complete = False
-        waypoints = np.empty((0,3))
-        k = 3
+        #corners = self.detect_biggest_square_plane(start_point)
+        #self.points_to_mark = corners
+        if DO_GET_WAYPOINTS:
+            waypoints = self.get_waypoints_for_k_coverage()
+            with open('cached_random_waypoints.dictionary', 'wb') as cached_pcd_file:
+                cache_data = {"waypoints": waypoints}
+                pickle.dump(cache_data, cached_pcd_file)
+        else:
+            with open('cached_random_waypoints.dictionary', 'rb') as cached_pcd_file:
+                cache_data = pickle.load(cached_pcd_file)
+                waypoints = cache_data["waypoints"]
         
-        while not k_coverage_complete:
-            k_covered_points = self.get_k_covered_points(waypoints, k)
-            mask = np.ones(len(self.pcd.points))
-            mask[k_covered_points] = 0
-
-            p = 
-
-
+        #waypoints = self.remove_redundant_with_greedy(waypoints)
+        self.print(len(waypoints))
+            
+        self.pcd.visit_path(waypoints, ROBOT_RADIUS)
+        coverage = self.pcd.get_coverage_efficiency()
+        self.print("coverage" + str(coverage))
         self.print_stats(self.path)
+
+        self.points_to_mark = np.array(waypoints)
         return self.path
 
 
-    def get_k_covered_points(self, waypoints, k):
-        covered_points = np.array([])
-        for point in waypoints:
-            covered_points = np.append(covered_points, self.pcd.points_idx_in_radius(point, ROBOT_RADIUS))
+    def remove_redundant_with_greedy(self, waypoints):
+        pass 
+
+
+    def get_waypoints_for_k_coverage(self):
+        waypoints = np.empty((0,3))
+        k = 2
         
-        points_idx, counts = np.unique(covered_points, return_counts=True)
-        k_covered_points = points_idx[counts > k]
+        uncovered_points_idx = np.arange(len(self.pcd.points))
+        covered_points_idx = np.array([], dtype=np.int)
+        k_covered_points_idx = np.array([], dtype=np.int)
+        
+        while len(k_covered_points_idx) < len(self.pcd.points):
+            if len(uncovered_points_idx):
+                random_idx = np.random.choice(len(uncovered_points_idx), 1, replace=False)[0]
+                new_waypoint = self.pcd.points[uncovered_points_idx[random_idx]]
+            else:
+                #self.print("ALL POINTS COVERED")
+                random_idx = np.random.choice(len(covered_points_idx), 1, replace=False)[0]
+                new_waypoint = self.pcd.points[covered_points_idx[random_idx]]
+
+            waypoints = np.append(waypoints, [new_waypoint], axis=0)
+            covered_points_idx = np.append(covered_points_idx, self.pcd.points_idx_in_radius(new_waypoint, ROBOT_RADIUS))
+            #self.print("k_covered_points" + str(k_covered_points))
+            #self.print("uncovered_points_idx" + str(uncovered_points_idx))
+            #self.print("new_waypoint" + str(new_waypoint))
+            #self.print("waypoints" + str(waypoints))
+            #self.print("all_covered_points_idx" + str(all_covered_points_idx))
+            uncovered_points_idx = self.delete_values(uncovered_points_idx, covered_points_idx)
+            k_covered_points_idx = np.append(k_covered_points_idx, self.get_k_covered_points_idx(covered_points_idx, k))
+            covered_points_idx = self.delete_values_not_unique(covered_points_idx, k_covered_points_idx)
+        
+        return waypoints
+            
+            #self.print(len(k_covered_points_idx))
+
+    def get_k_covered_points_idx(self, covered_points_idx, k):
+        points_idx, counts = np.unique(covered_points_idx, return_counts=True)
+        k_covered_points = points_idx[counts >= k]
         return k_covered_points
+
+    def delete_values(self, array, values):
+        return array[ np.isin(array, values, assume_unique=True, invert=True) ]
+
+    def delete_values_not_unique(self, array, values):
+        return array[ np.isin(array, values, invert=True) ]
+
 
     def has_been_visited(self, point, path=None):
         if path is None:
