@@ -1,5 +1,9 @@
 import networkx as nx
 import numpy as np
+import dimod
+import dwave_networkx as dnx
+from python_tsp.exact import solve_tsp_dynamic_programming
+from python_tsp.heuristics import solve_tsp_local_search, solve_tsp_simulated_annealing
 
 class Tree:
     def __init__(self, name = False):
@@ -25,6 +29,20 @@ class Tree:
 
     def add_edge(self, node_from_idx, node_to_idx, weight):
         self.tree.add_edge(node_from_idx, node_to_idx, weight=weight, tree=self.tree.name)
+
+    def get_traveling_salesman_path(self):
+        max_idx = self.tree.number_of_nodes()
+        weight_matrix = np.zeros( (max_idx, max_idx) )
+        for node in range(max_idx):
+            for other_node in range(max_idx):
+                if node == other_node:
+                    weight_matrix[node, other_node] = 0
+                else:
+                    weight_matrix[node, other_node] = self.tree[node][other_node]["weight"]
+        
+        weight_matrix[:, 0] = 0
+        permutation, distance = solve_tsp_local_search(weight_matrix, max_processing_time=120)
+        return permutation
 
     def print_tree(self):
         text = "Info: " + str(nx.info(self.tree))

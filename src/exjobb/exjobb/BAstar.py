@@ -9,7 +9,7 @@ from exjobb.CPPSolver import CPPSolver, ROBOT_RADIUS, STEP_SIZE
 from exjobb.MotionPlanner import MotionPlanner
 CELL_STEP_SIZE = STEP_SIZE #1.25*ROBOT_RADIUS
 VISITED_TRESHOLD = 0.66*STEP_SIZE #0.8*ROBOT_RADIUS
-COVEREAGE_EFFICIENCY_GOAL = 0.1
+COVEREAGE_EFFICIENCY_GOAL = 0.99
 MAX_ITERATIONS = 10000
 
 TRAPPED = 0
@@ -30,7 +30,6 @@ class BAstar(CPPSolver):
         self.move_to(start_point)
         self.starting_point_list = np.array([start_point])
 
-        starting_point = start_point
         current_position = start_point
         self.motion_planner = MotionPlanner(self.logger, self.pcd)
         self.cover_local_area_time = 0
@@ -43,6 +42,14 @@ class BAstar(CPPSolver):
         self.valid_time = 0
         self.next_starting_point_time = 0
         break_loop = False
+
+        starting_point = self.find_closest_wall(current_position)
+        if starting_point is False:
+            starting_point = current_position
+        else:
+            path_to_starting_point = self.motion_planner.Astar(current_position, starting_point)
+            self.follow_path(path_to_starting_point)
+
         while coverage < COVEREAGE_EFFICIENCY_GOAL:
             
             cover_local_area = timeit.default_timer()
@@ -137,6 +144,33 @@ class BAstar(CPPSolver):
         
         return self.path
 
+    def find_closest_wall(self, start_position):
+
+        def is_in_list(list, array):
+            diffs =  np.linalg.norm(list - array, axis=1)
+            return np.any(diffs < 0.01)
+
+        queue = np.array([start_position])
+        visited = np.array([start_position])
+        while len(queue):
+            current_position, queue = queue[0], queue[1:]
+            neighbours = self.get_neighbours(current_position)
+            for neighbour in neighbours:
+                if not self.motion_planner.is_valid_step(current_position, neighbour):
+                    return current_position
+
+                if is_in_list(visited, neighbour):
+                    continue
+                
+                    
+                queue = np.append(queue, [neighbour], axis=0)
+                visited = np.append(visited, [neighbour], axis=0)
+
+        return False
+
+
+
+
     def get_next_starting_point(self, sorted_backtracking_list, visiting_rate_start = 0.7):
         next_starting_point = False
         visiting_rate = visiting_rate_start
@@ -169,10 +203,17 @@ class BAstar(CPPSolver):
 
             while not critical_point_found:
                 critical_point_found = True
-                for neighbour in self.get_neighbours(current_position, angle_offset):
+                neighbours = self.get_neighbours(current_position, angle_offset)
+                for index, neighbour in enumerate(neighbours):
                     #self.print("potential neighbour: " + str(neighbour))
                     if self.is_blocked(current_position, neighbour, current_path):
                         continue
+
+                    #if index in [0,1]:
+                    #    east = neighbours[6]
+                    #    if not self.is_blocked(current_position, east, current_path):
+
+
                     current_position = neighbour
                     
                     current_path = np.append( current_path, [neighbour], axis=0 )
@@ -261,18 +302,9 @@ class BAstar(CPPSolver):
             pos = np.array([x, y, z])
             directions.append(self.pcd.find_k_nearest(pos, 1)[0])
         east, northeast, north, northwest, west, southwest, south, southeast = directions
-        '''
-        east = self.motion_planner.new_point_towards(current_position, current_position + directions, CELL_STEP_SIZE)
-        northeast = self.motion_planner.new_point_towards(current_position, current_position +np.array([100,100,0]), CELL_STEP_SIZE)
-        north = self.motion_planner.new_point_towards(current_position, current_position +np.array([0,100,0]), CELL_STEP_SIZE)
-        northwest = self.motion_planner.new_point_towards(current_position,current_position + np.array([-100,100,0]), CELL_STEP_SIZE)
-        west = self.motion_planner.new_point_towards(current_position, current_position +np.array([-100,0,0]), CELL_STEP_SIZE)
-        southwest = self.motion_planner.new_point_towards(current_position, current_position +np.array([-100,-100,0]), CELL_STEP_SIZE)
-        south = self.motion_planner.new_point_towards(current_position,current_position + np.array([0,-100,0]), CELL_STEP_SIZE)
-        southeast = self.motion_planner.new_point_towards(current_position,current_position + np.array([100,-100,0]), CELL_STEP_SIZE)
-        '''
-        #return [north, east, south, west]
-        return [north, south, northeast, northwest, southeast, southwest, east, west]
+
+        #return [east, north, south, northeast, northwest, southeast, southwest, west]
+        return [west, northwest, southwest, north, south, northeast, southeast, east]
 
     def has_been_visited(self, point, path=None):
         if path is None:

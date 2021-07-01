@@ -1,4 +1,5 @@
 from os import replace
+from exjobb.Parameters import ROBOT_SIZE
 from exjobb.Tree import Tree
 import numpy as np
 from collections import deque
@@ -34,7 +35,7 @@ class RandomSample(CPPSolver):
         coverage = 0
         self.path = np.array([start_point])
         self.points_to_mark = np.array([start_point])
-        self.pcd.visit_point(start_point, ROBOT_RADIUS)
+        self.move_to(start_point)
         #corners = self.detect_biggest_square_plane(start_point)
         #self.points_to_mark = corners
         if DO_GET_WAYPOINTS:
@@ -47,10 +48,12 @@ class RandomSample(CPPSolver):
                 cache_data = pickle.load(cached_pcd_file)
                 waypoints = cache_data["waypoints"]
         
-        #waypoints = self.remove_redundant_with_greedy(waypoints)
         self.print(len(waypoints))
-            
-        self.pcd.visit_path(waypoints, ROBOT_RADIUS)
+        waypoints = self.remove_redundant_with_greedy(waypoints)
+        self.print(len(waypoints))
+        self.print("golow")
+        self.follow_path(waypoints)
+        self.print("golowasdf")
         coverage = self.pcd.get_coverage_efficiency()
         self.print("coverage" + str(coverage))
         self.print_stats(self.path)
@@ -60,7 +63,35 @@ class RandomSample(CPPSolver):
 
 
     def remove_redundant_with_greedy(self, waypoints):
-        pass 
+        sub = np.empty((1,3))
+        uncovered = np.arange(len(self.pcd.points))
+        covered = np.array([])
+        left = waypoints
+
+        while len(uncovered):
+            new_covered = np.array([])
+            for waypoint in left:
+                covers = self.pcd.points_idx_in_radius(waypoint, ROBOT_SIZE/2)
+                new = self.delete_values(covers, covered)
+                new_covered = np.append(new_covered, len(new))
+
+            max_idx = np.argmax(new_covered)
+            max_point = left[max_idx]
+            sub = np.append(sub, [max_point], axis=0)
+            covers = self.pcd.points_idx_in_radius(max_point, ROBOT_SIZE/2)
+            uncovered = self.delete_values(uncovered, covers)
+            left = np.delete(left, max_idx, 0)
+            self.print("new_covered" + str(new_covered))
+            self.print("max_idx" + str(max_idx))
+            self.print("nof points" + str(new_covered[max_idx]))
+            self.print("max_point" + str(max_point))
+            self.print("sub" + str(sub))
+            self.print("covers" + str(covers))
+            self.print("uncovered" + str(uncovered))
+            self.print("left" + str(left))
+            self.print("uncovered" + str(len(uncovered)))
+
+        return  sub
 
 
     def get_waypoints_for_k_coverage(self):

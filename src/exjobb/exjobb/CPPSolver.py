@@ -93,8 +93,12 @@ class CPPSolver:
         self.pcd.visit_path(path, ROBOT_RADIUS)
 
     def move_to(self, point):
+        if len(self.path) > 0:
+            curr_position = self.path[-1]
+            self.pcd.visit_point(point, curr_position, ROBOT_RADIUS)
+            
         self.path = np.append( self.path, [point], axis=0 )
-        self.pcd.visit_point(point, ROBOT_RADIUS)
+        
 
     def print(self, object_to_print):
         self.logger.info(str(object_to_print))

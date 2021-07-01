@@ -57,7 +57,7 @@ class MotionPlanner():
             
             tree_a, tree_b = tree_b, tree_a
         
-        #self.logger.warn("Failed to find path using RRT")
+        self.logger.warn("Failed to find path using RRT")
         return False
 
     def extend(self, tree, extension_point):
@@ -97,10 +97,13 @@ class MotionPlanner():
             
 
     def Astar(self, start_point, end_point):
-
-        
         
         self.astar_points = np.array([start_point, end_point])
+
+        if self.is_valid_step(start_point, end_point):
+            return self.astar_points
+        
+        
         start = 0
         target = 1
 
@@ -166,8 +169,11 @@ class MotionPlanner():
                 enqueued[neighbor] = ncost, h
                 push(queue, (ncost + h, next(c), neighbor, ncost, curnode))
             
-        self.print("No path found using Astar")
-        return False
+        self.print("No path found using Astar. Using RRT.")
+        self.print((start_point, end_point))
+        return self.RRT(start_point, end_point)
+
+        #return False
 
     def AstarSPT(self, path):
         #self.print(path)

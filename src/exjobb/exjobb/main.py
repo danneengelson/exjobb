@@ -19,6 +19,8 @@ from exjobb.BAstar import BAstar
 from exjobb.RobotTraversability import RobotTraversability
 from exjobb.Spiral import Spiral
 from exjobb.RandomSample import RandomSample
+from exjobb.BAstarRRT import BAstarRRT
+from exjobb.RandomBAstar import RandomBAstar
 
 from exjobb.Parameters import ROBOT_SIZE, ROBOT_STEP_SIZE
 from exjobb.ROSMessage import RED, GREEN, BLUE
@@ -28,11 +30,11 @@ DO_TERRAIN_ASSESSMENT = False
 DO_ROBOT_TRAVERSABILITY = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
-PUBLISH_MARKERS = False
-PUBLISH_PATH = False
-PUBLISH_PATH_ANIMATION = True
+PUBLISH_MARKERS = True
+PUBLISH_PATH = True
+PUBLISH_PATH_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
-PUBLISH_VISITED_GROUND_PCD = False
+PUBLISH_VISITED_GROUND_PCD = True
 PUBLISH_TRAVERSABLE_PCD = True
 
 MOTION_PLANNER_TEST = False
@@ -63,6 +65,7 @@ class MainNode(Node):
         end_pos = [ -3.2,  1.7, -5.3]
 
 
+
         self.point_cloud = PointCloud(self.print, file="pointcloud.pcd")
         
         ######### FOR NOW:
@@ -91,6 +94,8 @@ class MainNode(Node):
         self.markers.append( {"point": start_point, "color": RED} )
         self.markers.append( {"point": end_point, "color": BLUE} )
 
+        #self.print(len(traversable_points_for_robot) / len(traversable_points))
+
         if MOTION_PLANNER_TEST:
             self.path = motion_planner.Astar(start_point, end_point)
             self.points_to_mark = np.array([start_point, end_point])
@@ -98,7 +103,7 @@ class MainNode(Node):
                 self.path = []
 
         if CPP_TEST:
-            self.cpp = BAstar(self.get_logger(), motion_planner)
+            self.cpp = Spiral(self.get_logger(), motion_planner)
             self.path = self.cpp.get_cpp_path(end_pos)            
             self.points_to_mark = self.cpp.get_points_to_mark()
 
@@ -192,7 +197,7 @@ class MainNode(Node):
         self.path_pub.publish(path_msg)
 
         point = self.path[self.animation_iteration]
-        self.ground_point_cloud.visit_point(point, ROBOT_SIZE/2)
+        self.ground_point_cloud.visit_point(point, self.path[self.animation_iteration-1], ROBOT_SIZE/2)
         self.visited_ground_points_pcd = self.ground_point_cloud.get_pcd_from_visited_points()
         self.visited_ground_point_cloud_publisher()
 

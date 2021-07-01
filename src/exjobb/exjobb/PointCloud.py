@@ -1,3 +1,4 @@
+from exjobb.Parameters import ROBOT_SIZE
 import rclpy
 from rclpy.node import Node
 import sensor_msgs.msg as sensor_msgs
@@ -47,16 +48,30 @@ class PointCloud:
         #self.timer = self.create_timer(timer_period, self.marker_publisher)
         #self.pcd_pub = self.create_timer(7, self.point_cloud_publisher)
     
-    def visit_point(self, point, robot_radius):
-        [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
-        self.visited_points_idx = np.append(self.visited_points_idx, idx)
+    def visit_point(self, point, prev_point, robot_radius):
+        if np.linalg.norm( point - prev_point ) > ROBOT_SIZE/3:
+            steps = int(np.ceil( np.linalg.norm( point - prev_point) / (ROBOT_SIZE/3) ))
+            path_to_point = np.linspace(prev_point, point, steps)
+        else:
+            path_to_point = [point]
+
+        for step in path_to_point:
+            [k, idx, _] = self.kdtree.search_radius_vector_3d(step, robot_radius)
+            self.visited_points_idx = np.append(self.visited_points_idx, idx)
+        
         
         #self.print("Coverage: " + str(self.get_coverage_efficiency()))
 
+    def visit_only_point(self, point, robot_radius):
+        [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
+        self.visited_points_idx = np.append(self.visited_points_idx, idx)
+
     def visit_path(self, path, robot_radius):
-        for point in path:
-            [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
-            self.visited_points_idx = np.append(self.visited_points_idx, idx)
+        prev_point = path[0]
+        for idx, point in enumerate(path[1:]):
+            #self.print("Visiting path. " + str(round(idx / len(path)*100)) + "% done.")
+            self.visit_point(point, prev_point, robot_radius)
+            prev_point = point
     
     def detect_visited_points_from_path(self, visited_positions, robot_radius):
         self.print("Visiting " + str(len(visited_positions)) + " points...")
@@ -72,13 +87,16 @@ class PointCloud:
 
     def get_pcd_from_visited_points(self):
         #self.print(str(self.visited_points_idx))
-        self.print("Creating point cloud from " + str(len(self.points[self.visited_points_idx.astype(int), :])) + " visited points...")
+        #self.print("Creating point cloud from " + str(len(self.points[self.visited_points_idx.astype(int), :])) + " visited points...")
         #visited_pcd = o3d.geometry.PointCloud()
         #visited_pcd.points = o3d.utility.Vector3dVector(self.points[self.visited_points_idx.astype(int), :])
         return self.point_cloud(self.points[self.visited_points_idx.astype(int), :], 'my_frame')
 
     def get_coverage_efficiency(self):
         #self.print("Counting Coverage efficiency...")
+        if len(self.visited_points_idx) == 0:
+            return 0
+            
         self.visited_points_idx = np.unique(self.visited_points_idx, axis=0)
         return len(self.visited_points_idx) / len(self.points)
 
