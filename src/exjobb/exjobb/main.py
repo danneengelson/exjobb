@@ -31,14 +31,14 @@ DO_ROBOT_TRAVERSABILITY = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
 PUBLISH_MARKERS = True
-PUBLISH_PATH = True
-PUBLISH_PATH_ANIMATION = False
+PUBLISH_PATH = False
+PUBLISH_PATH_ANIMATION = True
 PUBLISH_VISITED_PCD = False 
 PUBLISH_VISITED_GROUND_PCD = True
 PUBLISH_TRAVERSABLE_PCD = True
 
-MOTION_PLANNER_TEST = False
-CPP_TEST = True
+MOTION_PLANNER_TEST = True
+CPP_TEST = False
 
 class MainNode(Node):
 
@@ -103,7 +103,7 @@ class MainNode(Node):
                 self.path = []
 
         if CPP_TEST:
-            self.cpp = Spiral(self.get_logger(), motion_planner)
+            self.cpp = RandomBAstar(self.get_logger(), motion_planner)
             self.path = self.cpp.get_cpp_path(end_pos)            
             self.points_to_mark = self.cpp.get_points_to_mark()
 

@@ -16,7 +16,7 @@ from networkx.algorithms.shortest_paths.weighted import _weight_function
 STEP_SIZE = 0.1
 RRT_STEP_SIZE = 3*STEP_SIZE
 ASTAR_STEP_SIZE = 5*STEP_SIZE
-UNTRAVERSABLE_THRESHHOLD = 8*STEP_SIZE
+UNTRAVERSABLE_THRESHHOLD = 2*STEP_SIZE
 
 TRAPPED = 0
 ADVANCED = 1
@@ -252,7 +252,7 @@ class MotionPlanner():
     
 
     def is_valid_step(self, from_point, to_point):
-
+ 
         
         total_step_size = np.linalg.norm(to_point - from_point)
         
@@ -261,7 +261,6 @@ class MotionPlanner():
             return False
 
         if total_step_size <= STEP_SIZE:
-            #self.print("total_step_size")
             return True
 
         
@@ -270,11 +269,18 @@ class MotionPlanner():
          
         prev_point = from_point
         for step in range(nbr_of_steps):
+            
             end_pos = prev_point + direction
-
+            
             distance_to_nearest = timeit.default_timer()
-            if self.pcd.distance_to_nearest(end_pos) > 0.2:
+            if self.pcd.distance_to_nearest(end_pos) > UNTRAVERSABLE_THRESHHOLD:
                 self.distance_to_nearest += timeit.default_timer() - distance_to_nearest
+                nearest_point = self.pcd.find_k_nearest(end_pos, 1)
+                self.print("prev_point" + str(prev_point))
+                self.print("end_pos" + str(end_pos))
+                self.print("nearest_point" + str(nearest_point))
+                self.print("dist prev-end_pos" + str(np.linalg.norm(nearest_point-prev_point)))
+                self.print(self.pcd.distance_to_nearest(end_pos))
                 return False
             self.distance_to_nearest += timeit.default_timer() - distance_to_nearest
 

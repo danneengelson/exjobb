@@ -379,7 +379,7 @@ class PlanePath():
             directions.append(self.pcd.find_k_nearest(pos, 1)[0])
         east, northeast, north, northwest, west, southwest, south, southeast = directions
 
-        #return [north, south, northeast, northwest, southeast, southwest, east, west]
+        return [north, south, northeast, northwest, southeast, southwest, east, west]
         return [west, northwest, southwest, north, south, northeast, southeast, east]
 
     def is_blocked(self, from_point, to_point, path = None):
