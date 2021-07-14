@@ -1,30 +1,33 @@
-from exjobb.Parameters import ROBOT_SIZE
-import rclpy
 from rclpy.node import Node
 import sensor_msgs.msg as sensor_msgs
 import std_msgs.msg as std_msgs
-import visualization_msgs.msg as visualization_msgs
-import geometry_msgs.msg as geometry_msgs
 
 import open3d as o3d
 import numpy as np
-
 import os
 
-#Code from https://github.com/SebastianGrans/ROS2-Point-Cloud-Demo/blob/master/pcd_demo/pcd_publisher/pcd_publisher_node.py
+from exjobb.Parameters import ROBOT_SIZE, ROBOT_RADIUS
 
 class PointCloud:
+    """
+    A class for doing calculations on a point cloud
+    and keep track of visited points and coverage efficiency.
+    """
 
     def __init__(self, print, file = None, points = None ):
-        self.print = print
-        #self.filter_pointcloud2()
+        """ 
+        Args:
+            print: Function for printing messages
+            file: A .pcd file that defines the points in a point cloud
+            points: A Nx3 numpy array with all points in the point cloud 
+        """ 
 
-        #pcd_path = "smallpointcloud.pcd"
+        self.print = print
+
         if file is not None:
             self.print("Reading point cloud file...")
             self.raw_pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + file)
             self.points = np.asarray(self.raw_pcd.points)
-
         elif points is not None:
             self.raw_pcd = o3d.geometry.PointCloud()
             self.raw_pcd.points = o3d.utility.Vector3dVector(points)
@@ -32,23 +35,19 @@ class PointCloud:
         else:
             self.print("Missing pointcloud argument")
             return
-        #self.points = np.unique(np.asarray(pcd.points), axis=0)
 
-        
-        #self.print(str(self.points.shape))
-        #self.print(str(self.points))
         self.pcd = self.point_cloud(self.points, 'my_frame')
         self.kdtree = o3d.geometry.KDTreeFlann(self.raw_pcd)
         self.visited_points_idx = np.array([])
         self.traversable_points_idx = np.array([])
-        #self.pcd_publisher = self.create_publisher(sensor_msgs.PointCloud2, 'pcd', 10)
-        #timer_period = 5
-
-        #self.print("Start publishing point cloud")
-        #self.timer = self.create_timer(timer_period, self.marker_publisher)
-        #self.pcd_pub = self.create_timer(7, self.point_cloud_publisher)
     
-    def visit_point(self, point, prev_point, robot_radius):
+    def visit_path_to_point(self, point, prev_point):
+        """ Go to a point and mark the path as visited
+        Args:
+            point: The point to visit
+            prev_point: current position
+        """
+
         if np.linalg.norm( point - prev_point ) > ROBOT_SIZE/3:
             steps = int(np.ceil( np.linalg.norm( point - prev_point) / (ROBOT_SIZE/3) ))
             path_to_point = np.linspace(prev_point, point, steps)
@@ -59,9 +58,6 @@ class PointCloud:
             [k, idx, _] = self.kdtree.search_radius_vector_3d(step, robot_radius)
             self.visited_points_idx = np.append(self.visited_points_idx, idx)
         
-        
-        #self.print("Coverage: " + str(self.get_coverage_efficiency()))
-
     def visit_only_point(self, point, robot_radius):
         [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
         self.visited_points_idx = np.append(self.visited_points_idx, idx)
@@ -86,10 +82,6 @@ class PointCloud:
         return nbr_of_visited/total_points
 
     def get_pcd_from_visited_points(self):
-        #self.print(str(self.visited_points_idx))
-        #self.print("Creating point cloud from " + str(len(self.points[self.visited_points_idx.astype(int), :])) + " visited points...")
-        #visited_pcd = o3d.geometry.PointCloud()
-        #visited_pcd.points = o3d.utility.Vector3dVector(self.points[self.visited_points_idx.astype(int), :])
         return self.point_cloud(self.points[self.visited_points_idx.astype(int), :], 'my_frame')
 
     def get_coverage_efficiency(self):
@@ -119,22 +111,6 @@ class PointCloud:
 
         nodes, inv, counts = np.unique(all_idx, return_inverse=True, return_counts=True)
         return np.mean(counts)
-        #return len(self.visited_points_idx) / len(self.points)
-
-    def point_cloud_publisher(self):
-        #self.print("hej2")
-        # For visualization purposes, I rotate the point cloud with self.R 
-        # to make it spin. 
-        #self.points = self.points @ self.R
-        # Here I use the point_cloud() function to convert the numpy array 
-        # into a sensor_msgs.PointCloud2 object. The second argument is the 
-        # name of the frame the point cloud will be represented in. The default
-        # (fixed) frame in RViz is called 'map'
-        self.pcd = self.point_cloud(self.points, 'my_frame')
-        #self.print("hej6")   
-        # Then I publish the PointCloud2 object 
-        #self.pcd_publisher.publish(self.pcd)
-        #self.print('Publishing: "%s"' % self.pcd)
 
     def point_cloud(self, points, parent_frame):
         """ Creates a point cloud message.
@@ -192,12 +168,16 @@ class PointCloud:
 
     def distance_to_nearest(self, point):
         nearest_point = self.find_k_nearest(point, 1)
-        return np.linalg.norm(point[0:2] - nearest_point[0,0:2])
+        return np.linalg.norm(point - nearest_point[0])
 
     def points_idx_in_radius(self, point, radius):
         [k, idx, _] = self.kdtree.search_radius_vector_3d(point, radius)
         return np.asarray(idx, dtype=int)
     
+
+
+
+
     def filter_pointcloud(self):
         x1 = 351463
         x2 = 351517
@@ -206,7 +186,7 @@ class PointCloud:
         z0 = 58
 
         pcd_path = "out.pcd"
-    
+
         self.print("Reading point cloud file...")
         pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_path, print_progress=True)
         self.print("Filtering point cloud...")
@@ -225,7 +205,7 @@ class PointCloud:
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(self.points)
         o3d.io.write_point_cloud(os.getcwd() + "/src/exjobb/exjobb/pointcloud.pcd", pcd)
-    
+
     def filter_pointcloud2(self):
         x1 = 0
         x2 = 10
@@ -234,7 +214,7 @@ class PointCloud:
         z0 = 0
 
         pcd_path = os.getcwd() + "/src/exjobb/exjobb/pointcloud.pcd"
-    
+
         self.print("Reading point cloud file...")
         pcd = o3d.io.read_point_cloud(pcd_path, print_progress=True)
         self.print("Filtering point cloud...")

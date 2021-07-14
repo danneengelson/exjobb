@@ -28,7 +28,7 @@ NUMBER_OF_ANGLES = 8
 
 POINTS_FOR_BACKTRACK = 50
 
-DO_BASTAR_PLANNING = False
+DO_BASTAR_PLANNING = True
 
 TRAPPED = 0
 ADVANCED = 1
@@ -88,8 +88,9 @@ class RandomBAstar(CPPSolver):
 
             
             self.print("Number of found paths: " + str(len(BAstar_paths)))
-            start_points, end_points, sorted_paths, visited_points_idx = self.get_greedy_sorted_paths(BAstar_paths)
-            
+            #start_points, end_points, sorted_paths, visited_points_idx = self.get_greedy_sorted_paths(BAstar_paths)
+            start_points, end_points, sorted_paths, visited_points_idx = self.get_data_from_paths(BAstar_paths)
+
             visited_waypoints = np.empty((0,3))
             for sorted_path in sorted_paths:
                 #self.print(sorted_path.path)
@@ -108,14 +109,13 @@ class RandomBAstar(CPPSolver):
         else:
             with open('cached_visited_points_idx.dictionary', 'rb') as cached_pcd_file:
                 cache_data = pickle.load(cached_pcd_file)
-                visited_points_idx = cache_data["visited_points_idx"]
+                visited_points_idx = np.unique(cache_data["visited_points_idx"])
                 visited_waypoints = cache_data["visited_waypoints"]
                 start_points = cache_data["start_points"]
                 end_points = cache_data["end_points"]
                 sorted_paths = cache_data["sorted_paths"]
-                self.pcd.visited_points_idx = visited_points_idx
-                #sorted_paths = []
-
+        
+        self.pcd.visited_points_idx = visited_points_idx
 
         #random_points = self.get_random_sampled_points_simple(visited_points_idx)
         #self.print(len(random_points))
@@ -123,6 +123,7 @@ class RandomBAstar(CPPSolver):
         before  = len(visited_waypoints)
         spiral_paths = []
         i = 3
+        self.print(len(visited_points_idx) / len(self.pcd.points))
         while len(visited_points_idx) < 0.98*len(self.pcd.points): 
             i += 33
             random_unvisited_point = self.get_random_unvisited_point(i, visited_waypoints)
@@ -165,6 +166,8 @@ class RandomBAstar(CPPSolver):
         self.print_stats(self.path)
 
         return self.path
+
+    
 
     def get_random_sampled_points_simple(self, visited_points_idx):
         pcd = PointCloud(self.print, points=self.motion_planner.pcd.points)
@@ -295,6 +298,19 @@ class RandomBAstar(CPPSolver):
         traveling_Salesman_path =  tree.get_traveling_salesman_path()
         self.print(traveling_Salesman_path)
         return [tree.nodes[i] for i in traveling_Salesman_path] 
+    def get_data_from_paths(self, paths):
+        sorted_paths = []
+        start_points = []
+        end_points = []
+        pcd = PointCloud(self.print, points=self.motion_planner.pcd.points)
+
+        for path in paths:
+            sorted_paths.append(path)
+            start_points.append(path.start)
+            end_points.append(path.end)
+            pcd.visit_path(path.path, ROBOT_RADIUS)
+
+        return start_points, end_points, sorted_paths, np.unique(pcd.visited_points_idx)
 
     def get_greedy_sorted_paths(self, BAstar_paths):
         sorted_paths = []

@@ -1,25 +1,19 @@
 import rclpy
 from rclpy.node import Node
 import sensor_msgs.msg as sensor_msgs
-import std_msgs.msg as std_msgs
 import visualization_msgs.msg as visualization_msgs
 import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 import numpy as np
-import os
 import pickle
 
 from exjobb.PointCloud import PointCloud
 from exjobb.TerrainAssessment import TerrainAssessment
 from exjobb.MotionPlanner import MotionPlanner
-from exjobb.NaiveRRTCPPDFS import NaiveRRTCPPDFS
-from exjobb.NaiveRRTCPPAStar import NaiveRRTCPPAstar
-from exjobb.BoustrophedonCPP import BoustrophedonCPP
-from exjobb.BAstar import BAstar
 from exjobb.RobotTraversability import RobotTraversability
+from exjobb.NaiveRRTCPPAStar import NaiveRRTCPPAstar
+from exjobb.BAstar import BAstar
 from exjobb.Spiral import Spiral
-from exjobb.RandomSample import RandomSample
-from exjobb.BAstarRRT import BAstarRRT
 from exjobb.RandomBAstar import RandomBAstar
 
 from exjobb.Parameters import ROBOT_SIZE, ROBOT_STEP_SIZE
@@ -31,14 +25,15 @@ DO_ROBOT_TRAVERSABILITY = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
 PUBLISH_MARKERS = True
-PUBLISH_PATH = False
-PUBLISH_PATH_ANIMATION = True
+PUBLISH_PATH = True
+PUBLISH_PATH_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
 PUBLISH_VISITED_GROUND_PCD = True
 PUBLISH_TRAVERSABLE_PCD = True
 
-MOTION_PLANNER_TEST = True
-CPP_TEST = False
+MOTION_PLANNER_TEST = False
+CPP_TEST = True
+COLLECT_RESULT = False
 
 class MainNode(Node):
 
@@ -53,6 +48,8 @@ class MainNode(Node):
         self.visited_ground_pcd_pub = self.create_publisher(sensor_msgs.PointCloud2, 'visited_ground_pcd', 100)
         self.traversable_pcd_pub = self.create_publisher(sensor_msgs.PointCloud2, 'traversable_pcd', 100)
         self.path_pub = self.create_publisher(nav_msgs.Path, 'path', 10)
+        
+        #Varaiables for publishers
         self.last_id = 0
         timer_period = 5
         animation_time_period = 0.1
@@ -61,16 +58,11 @@ class MainNode(Node):
         #Subscribers:
         self.rviz_sub = self.create_subscription(geometry_msgs.PointStamped, "clicked_point", self.clicked_point_cb, 100)
 
-        start_pos = [ -5.2,  -12.7, -10.3]
-        end_pos = [ -3.2,  1.7, -5.3]
-
-
+        if not COLLECT_RESULT:
+            start_pos = [ -5.2,  -12.7, -10.3]
+            end_pos = [ -3.2,  1.7, -5.3]
 
         self.point_cloud = PointCloud(self.print, file="pointcloud.pcd")
-        
-        ######### FOR NOW:
-        #pcd_pub = self.create_timer(timer_period, self.point_cloud_publisher)
-        #return
 
         traversable_points, ground_points_idx = self.do_terrain_assessment()        
         self.ground_point_cloud = PointCloud(self.print, points= traversable_points)

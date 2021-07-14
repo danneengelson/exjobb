@@ -100,9 +100,9 @@ class MotionPlanner():
         
         self.astar_points = np.array([start_point, end_point])
 
-        if self.is_valid_step(start_point, end_point):
+
+        if self.is_valid_step(start_point, end_point) or np.array_equal(start_point, end_point):
             return self.astar_points
-        
         
         start = 0
         target = 1
@@ -252,42 +252,24 @@ class MotionPlanner():
     
 
     def is_valid_step(self, from_point, to_point):
- 
         
         total_step_size = np.linalg.norm(to_point - from_point)
         
-
         if total_step_size == 0:
             return False
 
         if total_step_size <= STEP_SIZE:
             return True
-
         
-        nbr_of_steps = int(np.floor(total_step_size / STEP_SIZE))
+        nbr_of_steps = int(np.ceil(total_step_size / STEP_SIZE))
         direction = self.get_direction_vector(from_point, to_point) * STEP_SIZE
-         
-        prev_point = from_point
-        for step in range(nbr_of_steps):
+
+        for step in range(1, nbr_of_steps):
             
-            end_pos = prev_point + direction
-            
-            distance_to_nearest = timeit.default_timer()
+            end_pos =  from_point + step * direction
             if self.pcd.distance_to_nearest(end_pos) > UNTRAVERSABLE_THRESHHOLD:
-                self.distance_to_nearest += timeit.default_timer() - distance_to_nearest
-                nearest_point = self.pcd.find_k_nearest(end_pos, 1)
-                self.print("prev_point" + str(prev_point))
-                self.print("end_pos" + str(end_pos))
-                self.print("nearest_point" + str(nearest_point))
-                self.print("dist prev-end_pos" + str(np.linalg.norm(nearest_point-prev_point)))
-                self.print(self.pcd.distance_to_nearest(end_pos))
                 return False
-            self.distance_to_nearest += timeit.default_timer() - distance_to_nearest
-
-            prev_point = end_pos
-
-            continue
-
+        
         return True
     
     def print(self, object_to_print):

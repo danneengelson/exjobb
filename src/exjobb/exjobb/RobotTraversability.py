@@ -41,9 +41,6 @@ class RobotTraversability():
             distance_to_nearest = self.ground_point_cloud.distance_to_nearest(point)
             
 
-
-
-
             if distance_to_nearest > 0.25 and distance_to_nearest < ROBOT_SIZE:                
                 points_nearby = self.pcd.points_idx_in_radius(point, 1.5*ROBOT_SIZE)
                 traversable_points = self.delete_values(traversable_points, points_nearby)

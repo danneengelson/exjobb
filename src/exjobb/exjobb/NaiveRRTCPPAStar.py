@@ -1,3 +1,4 @@
+from networkx.algorithms.shortest_paths.dense import reconstruct_path
 from exjobb.Tree import Tree
 import numpy as np
 from collections import deque
@@ -6,7 +7,7 @@ import networkx as nx
 from exjobb.CPPSolver import CPPSolver, ROBOT_RADIUS, STEP_SIZE
 
 RRT_STEP_SIZE = 3*STEP_SIZE
-COVEREAGE_EFFICIENCY_GOAL = 0.8
+COVEREAGE_EFFICIENCY_GOAL = 0.4
 MAX_ITERATIONS = 10000
 GOAL_CHECK_FREQUENCY = 50
 
@@ -25,9 +26,12 @@ class NaiveRRTCPPAstar(CPPSolver):
     def get_cpp_path(self, start_point):
         self.start_tracking()
         tree = self.build_RRT_tree(start_point)
-        path = self.find_path_through_tree(tree)
-        self.print_stats(path)
-        return path
+        self.print("hej")
+        self.path = self.find_path_through_tree2(tree)
+        self.print(self.path )
+        self.points_to_mark = [start_point]
+        self.print_stats(self.path)
+        return self.path
 
     def find_path_through_tree(self, tree):
        
@@ -42,6 +46,7 @@ class NaiveRRTCPPAstar(CPPSolver):
         last_node = False
         connected = True  
         path = np.array([start_node], dtype=int)
+
         while queue:
 
             if len(visited) ==  nbr_of_nodes:
@@ -80,7 +85,40 @@ class NaiveRRTCPPAstar(CPPSolver):
                 queue.pop()
                 connected = False
 
-            
+    def find_path_through_tree2(self, tree):
+       
+        def neighbors(node):
+            return [n for n in tree.tree.neighbors(node)]
+
+        start_node = 0
+        visited = np.array([start_node])
+        queue = np.array([start_node])
+        path = np.empty((0,3))
+
+        while len(queue) > 0:
+            current, queue = queue[-1], queue[0:-1]
+            #current, queue = queue[0], queue[1:]
+            visited = np.append(visited, current)
+            for neighbour in neighbors(current):
+                if neighbour not in visited:
+                    queue = np.append(queue, neighbour)
+
+        prev_node = start_node
+        self.print(visited)
+        for idx, node in enumerate(visited[2:]):
+            self.print("Visiting " + str(idx) + " out of " + str(len(visited)-2))
+            path_to_node = self.motion_planner.Astar(tree.nodes[prev_node], tree.nodes[node])
+            path = np.append(path, path_to_node, axis=0)
+            #if node in neighbors(prev_node):
+            #    path = np.append(path, [tree.nodes[node]], axis=0)
+            #else: 
+            #    path_to_node = self.motion_planner.Astar(tree.nodes[prev_node], tree.nodes[node])
+            #    path = np.append(path, path_to_node, axis=0)
+
+            prev_node = node
+
+        return path
+
 
     def build_RRT_tree(self, start_point):
         tree = Tree()
@@ -94,7 +132,7 @@ class NaiveRRTCPPAstar(CPPSolver):
             if status == TRAPPED:
                 continue
             
-            self.pcd.visit_point(new_point_1, ROBOT_RADIUS)
+            self.pcd.visit_only_point(new_point_1, ROBOT_RADIUS)
 
             if i % GOAL_CHECK_FREQUENCY == 0:
                 coverage = self.pcd.get_coverage_efficiency()
@@ -109,10 +147,10 @@ class NaiveRRTCPPAstar(CPPSolver):
 
     def extend(self, tree, extension_point):
         nearest_node_idx, nearest_point = tree.nearest_node(extension_point)
-        new_point = self.new_point_towards(nearest_point, extension_point, RRT_STEP_SIZE)
+        new_point = self.motion_planner.new_point_towards(nearest_point, extension_point, RRT_STEP_SIZE)
         #self.logger.info(str(np.linalg.norm(new_point - nearest_point)))
 
-        if self.is_valid_step(nearest_point, new_point):
+        if self.motion_planner.is_valid_step(nearest_point, new_point):
             distance = np.linalg.norm(new_point - nearest_point)
             new_node_idx = tree.add_node(new_point)
             tree.add_edge(nearest_node_idx, new_node_idx, distance)
@@ -122,3 +160,9 @@ class NaiveRRTCPPAstar(CPPSolver):
 
         else:
             return new_point, TRAPPED
+
+
+    
+    def get_points_to_mark(self):
+        #return self.backtrack_list
+        return self.points_to_mark
