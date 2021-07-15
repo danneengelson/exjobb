@@ -1,8 +1,6 @@
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
-import operator
-import collections
 import timeit
 
 from exjobb.FloorSegmentation import FloorSegmentation
@@ -10,21 +8,29 @@ from exjobb.ElevationDetector import ElevationDetector
 from exjobb.TraversabilityDetector import TraversabilityDetector
 from exjobb.Parameters import CELL_SIZE, ROBOT_STEP_SIZE
 import pickle
-import os
 
 VISUALIZE = False
 DO_TERRAIN_ASSESSMENT = True       
 CALCULATE_COVERAGE_ON_RAMP = False
 
 class TerrainAssessment():
+    """
+    A class for doing calculations for terrain assessment to find all
+    ground points in a point cloud.
+    """
 
-    def __init__(self, logger, pcd, print):
-        self.logger = logger
+    def __init__(self, print, pcd):
+        """ 
+        Args:
+            print: Function for printing messages
+            pcd: A PointCloud object with the point cloud that will be analysed.
+        """ 
+        self.print = print
         self.pcd = pcd.raw_pcd
         self.points = pcd.points
         self.pcd_kdtree = pcd.kdtree
         self.traversable_points_idx = np.array([])
-        self.print = print
+        
 
         self.floor_segmentation = FloorSegmentation(print)
         self.elevation_detector = ElevationDetector(print)

@@ -10,6 +10,9 @@ ROBOT_RADIUS = ROBOT_SIZE/2
 
 ROBOT_HEIGHT = 1    
 
+#When moving robot, update points around robot as covered every ROBOT_COVERAGE_STEP_SIZE meter
+ROBOT_COVERAGE_STEP_SIZE = ROBOT_SIZE/2
+
 #Maximum height difference between two points that the robot could manage 
 ROBOT_STEP_SIZE = 0.25 * ROBOT_SIZE     
 

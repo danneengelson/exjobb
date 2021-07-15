@@ -6,12 +6,12 @@ import open3d as o3d
 import numpy as np
 import os
 
-from exjobb.Parameters import ROBOT_SIZE, ROBOT_RADIUS
+from exjobb.Parameters import ROBOT_RADIUS, ROBOT_COVERAGE_STEP_SIZE
 
 class PointCloud:
     """
     A class for doing calculations on a point cloud
-    and keep track of visited points and coverage efficiency.
+    and keeping track of covered points and coverage efficiency.
     """
 
     def __init__(self, print, file = None, points = None ):
@@ -38,78 +38,102 @@ class PointCloud:
 
         self.pcd = self.point_cloud(self.points, 'my_frame')
         self.kdtree = o3d.geometry.KDTreeFlann(self.raw_pcd)
-        self.visited_points_idx = np.array([])
-        self.traversable_points_idx = np.array([])
-    
-    def visit_path_to_point(self, point, prev_point):
-        """ Go to a point and mark the path as visited
+        self.covered_points_idx =  np.array([])
+
+    def visit_position(self, position, apply_unique=False):
+        """ Mark points around position as covered
         Args:
-            point: The point to visit
-            prev_point: current position
+            position: The position to visit
+            apply_unique: If True, make sure covered_points_idx doesn't have duplicates.
+                          Used when function not called from self.visit_path_to_position.
+        """
+        [k, idx, _] = self.kdtree.search_radius_vector_3d(position, ROBOT_RADIUS)
+        self.covered_points_idx = np.append(self.covered_points_idx, idx)
+
+        if apply_unique:
+            self.covered_points_idx = np.unique(self.covered_points_idx)
+
+    def visit_path_to_position(self, goal_pos, start_pos):
+        """ Go in a straight line to a position and mark the points along the path as covered
+        Args:
+            goal_pos: The position to visit
+            start_pos: current position
         """
 
-        if np.linalg.norm( point - prev_point ) > ROBOT_SIZE/3:
-            steps = int(np.ceil( np.linalg.norm( point - prev_point) / (ROBOT_SIZE/3) ))
-            path_to_point = np.linspace(prev_point, point, steps)
+        if np.linalg.norm( goal_pos - start_pos ) > ROBOT_COVERAGE_STEP_SIZE:
+            steps = int(np.ceil( np.linalg.norm( goal_pos - start_pos) / ROBOT_COVERAGE_STEP_SIZE ))
+            path_to_pos = np.linspace(start_pos, goal_pos, steps)
         else:
-            path_to_point = [point]
+            path_to_pos = [goal_pos]
 
-        for step in path_to_point:
-            [k, idx, _] = self.kdtree.search_radius_vector_3d(step, robot_radius)
-            self.visited_points_idx = np.append(self.visited_points_idx, idx)
-        
-    def visit_only_point(self, point, robot_radius):
-        [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
-        self.visited_points_idx = np.append(self.visited_points_idx, idx)
+        for step in path_to_pos:
+            self.visit_position(step)
 
-    def visit_path(self, path, robot_radius):
-        prev_point = path[0]
-        for idx, point in enumerate(path[1:]):
-            #self.print("Visiting path. " + str(round(idx / len(path)*100)) + "% done.")
-            self.visit_point(point, prev_point, robot_radius)
-            prev_point = point
-    
-    def detect_visited_points_from_path(self, visited_positions, robot_radius):
-        self.print("Visiting " + str(len(visited_positions)) + " points...")
-        for position in visited_positions:
-            [k, idx, _] = self.kdtree.search_radius_vector_3d(position, robot_radius)
-            self.visited_points_idx = np.append(self.visited_points_idx, idx)
+        self.covered_points_idx = np.unique(self.covered_points_idx)
 
+    def visit_path(self, path):
+        """ Go throught the positions in the path and mark the points along the path as covered
+        Args:
+            path: Positions in the path
+        """
+
+        prev_pos = path[0]
+        for pos in path[1:]:
+            self.visit_path_to_position(pos, prev_pos)
+            prev_pos = pos
+
+    #SKA EVENTUELLT BORT
     def get_visiting_rate_in_area(self, point, radius):
         [k, idx, _] = self.kdtree.search_radius_vector_3d(point, radius)
         total_points = len(idx)
-        nbr_of_visited = len(np.intersect1d(self.visited_points_idx, np.asarray(idx)))
+        nbr_of_visited = len(np.intersect1d(self.covered_points_idx, np.asarray(idx)))
         return nbr_of_visited/total_points
 
-    def get_pcd_from_visited_points(self):
-        return self.point_cloud(self.points[self.visited_points_idx.astype(int), :], 'my_frame')
+
+    def get_covered_points_as_pcd(self):
+        """ Returns a point cloud message with only covered points
+        Returns:
+            A publishable point cloud message
+        """
+        return self.point_cloud(self.points[self.covered_points_idx.astype(int), :], 'my_frame')
 
     def get_coverage_efficiency(self):
-        #self.print("Counting Coverage efficiency...")
-        if len(self.visited_points_idx) == 0:
+        """ Returns the percentage of the point cloud that has been covered
+        Returns:
+            Coverage efficiency between 0 and 1
+        """
+
+        if len(self.covered_points_idx) == 0:
             return 0
             
-        self.visited_points_idx = np.unique(self.visited_points_idx, axis=0)
-        return len(self.visited_points_idx) / len(self.points)
+        #self.covered_points_idx = np.unique(self.covered_points_idx, axis=0)
+        return len(self.covered_points_idx) / len(self.points)
 
-    def get_coverage_efficiency_increase_from_path(self, path, robot_radius):
-        current_coverage_efficiency = self.get_coverage_efficiency()
-        new_visited_points = np.empty((0,3))
-        for point in path:
-            [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
-            new_visited_points = np.append(new_visited_points, idx)
-        new_coverage_efficiency = len(  np.unique(np.append(self.visited_points_idx, new_visited_points))) / len(self.points)
+    def get_coverage_count_per_point(self, path):
+        """ Returns how many times every point has been covered on average
+        Returns:
+            Coverage count per point on average
+        """
+        covered_points_idx = np.array([]).astype(np.int32)
+        prev_pos = path[0]
+        for pos in path[1:]:
+            if np.array_equal(pos, prev_pos):
+                continue 
+
+            if np.linalg.norm( pos - prev_pos ) > ROBOT_COVERAGE_STEP_SIZE:
+                steps = int(np.ceil( np.linalg.norm( pos - prev_pos) / ROBOT_COVERAGE_STEP_SIZE ))
+                path_to_pos = np.linspace(prev_pos, pos, steps)
+            else:
+                path_to_pos = [pos]
+
+            for step in path_to_pos:
+                [k, idx, _] = self.kdtree.search_radius_vector_3d(step, ROBOT_RADIUS)
+                covered_points_idx = np.append(covered_points_idx, idx)
+
+
+            prev_pos = pos
         
-        return new_coverage_efficiency - current_coverage_efficiency
-
-    def get_multiple_coverage(self, path, robot_radius):
-        
-        all_idx = np.array([], dtype=np.int)
-        for point in path:
-            [k, idx, _] = self.kdtree.search_radius_vector_3d(point, robot_radius)
-            all_idx = np.append(all_idx, idx)
-
-        nodes, inv, counts = np.unique(all_idx, return_inverse=True, return_counts=True)
+        nodes, inv, counts = np.unique(covered_points_idx, return_inverse=True, return_counts=True)
         return np.mean(counts)
 
     def point_cloud(self, points, parent_frame):
@@ -129,7 +153,6 @@ class PointCloud:
         # In a PointCloud2 message, the point cloud is stored as an byte 
         # array. In order to unpack it, we also include some parameters 
         # which desribes the size of each individual point.
-        #self.print("hej3")    
         
         ros_dtype = sensor_msgs.PointField.FLOAT32
         dtype = np.float32
@@ -137,7 +160,6 @@ class PointCloud:
 
         data = points.astype(dtype).tobytes() 
 
-        #self.print("hej4")
         # The fields specify what the bytes represents. The first 4 bytes 
         # represents the x-coordinate, the next 4 the y-coordinate, etc.
         fields = [sensor_msgs.PointField(
@@ -147,8 +169,6 @@ class PointCloud:
         # The PointCloud2 message also has a header which specifies which 
         # coordinate frame it is represented in. 
         header = std_msgs.Header(frame_id=parent_frame)
-
-        #self.print("hej5")
 
         return sensor_msgs.PointCloud2(
             header=header,
@@ -162,21 +182,42 @@ class PointCloud:
             data=data
         )
 
-    def find_k_nearest(self, point, k):
-        [k, idx, _] = self.kdtree.search_knn_vector_3d(point, k)
+    def find_k_nearest(self, position, k):
+        """ Returns the K nearest points
+        Args:
+            position: Arbitary position 
+            k: Number of points to return
+        Returns:
+            K nearest points from position
+        """
+        [k, idx, _] = self.kdtree.search_knn_vector_3d(position, k)
         return self.points[idx, :]
 
-    def distance_to_nearest(self, point):
-        nearest_point = self.find_k_nearest(point, 1)
-        return np.linalg.norm(point - nearest_point[0])
+    def distance_to_nearest(self, position):
+        """ Returns the distance to closest point in point cloud 
+        to given position.
+        Args:
+            position: Arbitary position 
+        Returns:
+            Distance in meters
+        """
+        nearest_point = self.find_k_nearest(position, 1)
+        return np.linalg.norm(position - nearest_point[0])
 
-    def points_idx_in_radius(self, point, radius):
-        [k, idx, _] = self.kdtree.search_radius_vector_3d(point, radius)
+    def points_idx_in_radius(self, position, radius):
+        """ Returns indexes of points in point cloud within given radius 
+        from given position.
+        Args:
+            position: Arbitary position 
+            radius: Search radius
+        Returns:
+            Array of indexes of points
+        """
+        [k, idx, _] = self.kdtree.search_radius_vector_3d(position, radius)
         return np.asarray(idx, dtype=int)
     
 
-
-
+    #Following code is used to get parts of big point clouds
 
     def filter_pointcloud(self):
         x1 = 351463

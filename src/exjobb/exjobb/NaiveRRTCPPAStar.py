@@ -132,7 +132,7 @@ class NaiveRRTCPPAstar(CPPSolver):
             if status == TRAPPED:
                 continue
             
-            self.pcd.visit_only_point(new_point_1, ROBOT_RADIUS)
+            self.pcd.visit_position(new_point_1, apply_unique=True)
 
             if i % GOAL_CHECK_FREQUENCY == 0:
                 coverage = self.pcd.get_coverage_efficiency()

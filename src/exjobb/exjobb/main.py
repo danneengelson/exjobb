@@ -95,7 +95,7 @@ class MainNode(Node):
                 self.path = []
 
         if CPP_TEST:
-            self.cpp = RandomBAstar(self.get_logger(), motion_planner)
+            self.cpp = BAstar(self.get_logger(), motion_planner)
             self.path = self.cpp.get_cpp_path(end_pos)            
             self.points_to_mark = self.cpp.get_points_to_mark()
 
@@ -109,13 +109,13 @@ class MainNode(Node):
             path_pub = self.create_timer(timer_period, self.path_publisher)
 
         if PUBLISH_VISITED_PCD:
-            self.point_cloud.detect_visited_points_from_path(self.path, robot_radius = ROBOT_SIZE/2)
-            self.visited_points_pcd = self.point_cloud.get_pcd_from_visited_points()
+            self.point_cloud.visit_path(self.path)
+            self.visited_points_pcd = self.point_cloud.get_covered_points_as_pcd()
             visited_pcd_pub = self.create_timer(timer_period, self.visited_point_cloud_publisher)
         
         if PUBLISH_VISITED_GROUND_PCD:
-            self.ground_point_cloud.detect_visited_points_from_path(self.path, robot_radius = ROBOT_SIZE/2)
-            self.visited_ground_points_pcd = self.ground_point_cloud.get_pcd_from_visited_points()
+            self.ground_point_cloud.visit_path(self.path)
+            self.visited_ground_points_pcd = self.ground_point_cloud.get_covered_points_as_pcd()
             visited_ground_pcd_pub = self.create_timer(timer_period, self.visited_ground_point_cloud_publisher)
 
         if PUBLISH_PATH_ANIMATION:
@@ -140,7 +140,7 @@ class MainNode(Node):
     
     def do_terrain_assessment(self):
         if DO_TERRAIN_ASSESSMENT:       
-            terrain_assessment = TerrainAssessment(self.get_logger(), self.point_cloud, self.print)
+            terrain_assessment = TerrainAssessment(self.print, self.point_cloud)
             terrain_assessment.analyse_terrain()
 
             ground_points_idx = np.unique(terrain_assessment.traversable_points_idx).astype(int)
@@ -189,8 +189,8 @@ class MainNode(Node):
         self.path_pub.publish(path_msg)
 
         point = self.path[self.animation_iteration]
-        self.ground_point_cloud.visit_point(point, self.path[self.animation_iteration-1], ROBOT_SIZE/2)
-        self.visited_ground_points_pcd = self.ground_point_cloud.get_pcd_from_visited_points()
+        self.ground_point_cloud.visit_path_to_position(point, self.path[self.animation_iteration-1])
+        self.visited_ground_points_pcd = self.ground_point_cloud.get_covered_points_as_pcd()
         self.visited_ground_point_cloud_publisher()
 
     def marker_publisher(self):

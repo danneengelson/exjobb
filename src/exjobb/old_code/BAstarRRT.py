@@ -169,7 +169,7 @@ class BAstarRRT(CPPSolver):
             if status == TRAPPED:
                 continue
             #self.print(new_point_1)
-            self.pcd.visit_only_point(new_point_1, ROBOT_SIZE/2)
+            self.pcd.visit_position(new_point_1)
 
             if i % GOAL_CHECK_FREQUENCY == 0:
                 coverage = self.pcd.get_coverage_efficiency()

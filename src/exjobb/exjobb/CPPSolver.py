@@ -67,7 +67,7 @@ class CPPSolver:
 
         length_of_path = get_length_of_path(path)
         rotation = get_total_rotation(path)
-        unessecary_coverage_mean = self.pcd.get_multiple_coverage(path, ROBOT_RADIUS)
+        unessecary_coverage_mean = self.pcd.get_coverage_count_per_point(path)
         computational_time = end_time - self.start_time
         coverage = self.pcd.get_coverage_efficiency()
         memory_consumption = get_memory_consumption(snapshot)
@@ -90,12 +90,12 @@ class CPPSolver:
 
     def follow_path(self, path):
         self.path = np.append( self.path, path, axis=0 )
-        self.pcd.visit_path(path, ROBOT_RADIUS)
+        self.pcd.visit_path(path)
 
     def move_to(self, point):
         if len(self.path) > 0:
             curr_position = self.path[-1]
-            self.pcd.visit_point(point, curr_position, ROBOT_RADIUS)
+            self.pcd.visit_path_to_position(point, curr_position)
             
         self.path = np.append( self.path, [point], axis=0 )
         

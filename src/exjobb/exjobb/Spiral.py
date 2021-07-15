@@ -9,7 +9,8 @@ from exjobb.CPPSolver import CPPSolver, ROBOT_RADIUS, STEP_SIZE
 from exjobb.MotionPlanner import MotionPlanner
 CELL_STEP_SIZE = STEP_SIZE #1.25*ROBOT_RADIUS
 VISITED_TRESHOLD = 0.66*STEP_SIZE #0.99*ROBOT_RADIUS
-COVEREAGE_EFFICIENCY_GOAL = 0.95
+COVEREAGE_EFFICIENCY_GOAL = 0.55
+
 
 TRAPPED = 0
 ADVANCED = 1
@@ -77,12 +78,14 @@ class Spiral(CPPSolver):
                 break
 
             self.follow_path(path_to_next_starting_point)
+            #break
             self.follow_path(path_until_dead_zone)
 
             current_position = new_current_position
             current_angle = self.get_angle(self.path[-2], current_position)
             coverage = self.pcd.get_coverage_efficiency()
             self.print("coverage" + str(coverage))
+            
         '''
         while coverage < COVEREAGE_EFFICIENCY_GOAL:
             #break

@@ -9,7 +9,7 @@ from exjobb.CPPSolver import CPPSolver, ROBOT_RADIUS, STEP_SIZE
 from exjobb.MotionPlanner import MotionPlanner
 CELL_STEP_SIZE = STEP_SIZE #1.25*ROBOT_RADIUS
 VISITED_TRESHOLD = 0.66*STEP_SIZE #0.8*ROBOT_RADIUS
-COVEREAGE_EFFICIENCY_GOAL = 0.99
+COVEREAGE_EFFICIENCY_GOAL = 0.2
 MAX_ITERATIONS = 10000
 
 TRAPPED = 0
@@ -96,6 +96,8 @@ class BAstar(CPPSolver):
 
                 self.print("backtracking_list: " + str(backtracking_list))
                 self.print("previous: " + str(next_starting_point))
+
+                #TA BORT get_next_starting_point i POintcloud om du tar bort här
                 next_starting_point, next_starting_point_idx, visiting_rate = self.get_next_starting_point(backtracking_list, visiting_rate)
                 self.print("new: " + str(next_starting_point))
                 path_to_next_starting_point = self.motion_planner.Astar(current_position, next_starting_point)
@@ -227,7 +229,7 @@ class BAstar(CPPSolver):
             if len(best_path) < len(new_local_path):
                 best_path = new_local_path
                 
-        self.pcd.visit_path(best_path , ROBOT_RADIUS)
+        self.pcd.visit_path(best_path)
         self.path = np.append( self.path, best_path, axis=0 )
 
         current_position = best_path[-1]
