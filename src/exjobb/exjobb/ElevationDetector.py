@@ -10,11 +10,19 @@ MIN_POINTS_IN_CELL = CELL_AREA * 100
 UNKNOWN_ELEV_Z = -100 
 
 class ElevationDetector:
+    ''' Class for creating a Discrete Elevation Model of the Point Cloud.
+    '''
+
     def __init__(self, print):
+        ''' 
+        Args:
+            print: function for printing messages
+        '''
         self.print = print
 
     def find_elevation(self, full_pcd, floor):
         start = timeit.default_timer()
+        
         cells_in_grid = floor.cells_grid.shape[0]*floor.cells_grid.shape[1]
         cells_with_elevation = 0
         total_part = 0

@@ -20,19 +20,19 @@ from exjobb.Parameters import ROBOT_SIZE, ROBOT_STEP_SIZE
 from exjobb.ROSMessage import RED, GREEN, BLUE
 import exjobb.ROSMessage as ROSMessage
 
-DO_TERRAIN_ASSESSMENT = False
+DO_TERRAIN_ASSESSMENT = True
 DO_ROBOT_TRAVERSABILITY = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
-PUBLISH_MARKERS = True
-PUBLISH_PATH = True
+PUBLISH_MARKERS = False
+PUBLISH_PATH = False
 PUBLISH_PATH_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
-PUBLISH_VISITED_GROUND_PCD = True
-PUBLISH_TRAVERSABLE_PCD = True
+PUBLISH_VISITED_GROUND_PCD = False
+PUBLISH_TRAVERSABLE_PCD = False
 
 MOTION_PLANNER_TEST = False
-CPP_TEST = True
+CPP_TEST = False
 COLLECT_RESULT = False
 
 class MainNode(Node):
@@ -141,9 +141,9 @@ class MainNode(Node):
     def do_terrain_assessment(self):
         if DO_TERRAIN_ASSESSMENT:       
             terrain_assessment = TerrainAssessment(self.print, self.point_cloud)
-            terrain_assessment.analyse_terrain()
+            coverable_points_idx = terrain_assessment.get_coverable_points_idx()
 
-            ground_points_idx = np.unique(terrain_assessment.traversable_points_idx).astype(int)
+            ground_points_idx = coverable_points_idx #np.unique(terrain_assessment.traversable_points_idx).astype(int)
             traversable_points = self.point_cloud.points[ground_points_idx]
 
             with open('cached_traversable_points.dictionary', 'wb') as cached_pcd_file:

@@ -5,50 +5,56 @@ import matplotlib.pyplot as plt
 from scipy.signal import argrelextrema
 import timeit
 from exjobb.Floor import Floor
-from exjobb.Parameters import Z_RESOLUTION, GROUND_OFFSET
+from exjobb.Parameters import Z_RESOLUTION, GROUND_OFFSET, FLOOR_LEVEL_HEIGHT_THRESSHOLD, MIN_FLOOR_HEIGHT
+from exjobb.Layer import Layer
 
-MIN_FLOOR_HEIGHT = 2
-GROUND_FLOOR_THRESSHOLD = 100000 
-VISUALIZE = True
+VISUALIZE = False
 SHOW_HISTOGRAM = False 
 
 class FloorSegmentation:
+    ''' A class for dividing a point cloud into floors    
+    '''
 
     def __init__(self, print):
+        ''' 
+        Args:
+            print: function for printing messages
+        '''
         self.print = print
 
     def get_segmentized_floors(self, pcd):
+        ''' Divides the point cloud into floors. 
+        Returns:
+            A list of instances of class Floor.
         '''
-        Divides the point cloud into floors. 
-        Returns a list of instances of class Floor.
-        '''
+
         start = timeit.default_timer()
-        bounding_box = self.get_bounding_box(pcd)
-        layers = self.get_layers(pcd, bounding_box)
-
-        points_idx_in_layers = np.array([layer["points_idx"] for layer in layers])
-        nbr_of_points_in_layers = np.array([layer["nbr_of_points"] for layer in layers])
-        start_z_of_layers = np.array([layer["start_z"] for layer in layers])
-
-        potential_ground_layers_idx = self.get_local_maximas_idx(nbr_of_points_in_layers)  
-        ground_layers_idx = self.get_ground_layers_idx(potential_ground_layers_idx, start_z_of_layers)
-
         segmentised_floors = []
-        ground_layer_idx = ground_layers_idx[0]
-        last_layer_idx = len(layers)
-        ground_layers_idx.append(last_layer_idx)
 
-        for floor_nr, next_ground_layer_idx in enumerate(ground_layers_idx[1:]):
-            segmentised_floor = {}
-            points_idx = np.array([]) 
-            for idx in range(ground_layer_idx, next_ground_layer_idx):
-                points_idx = np.append(points_idx, points_idx_in_layers[idx])
-            
-            floor = Floor("Floor " + str(floor_nr+1), pcd, points_idx)
-            
-            segmentised_floors.append(floor)
+        layers = self.get_layers(pcd)
+        
+        potential_floor_level_height_layers = self.get_potential_floor_level_height_layers(layers)  
+        floor_height_layers = self.get_floor_height_layers(potential_floor_level_height_layers)
 
-            ground_layer_idx = next_ground_layer_idx
+        base_height = floor_height_layers[0].start_z
+        current_floor = 0
+        current_floor_points_idx = np.array([])
+        top_floor = len(floor_height_layers) - 1
+
+        for layer in layers:
+            if layer.start_z < base_height:
+                continue
+
+            if current_floor is not top_floor and layer.start_z >= floor_height_layers[current_floor + 1].start_z:
+                floor = Floor("Floor " + str(current_floor+1), pcd, current_floor_points_idx)
+                segmentised_floors.append(floor)
+                current_floor += 1
+                current_floor_points_idx = np.array([])
+            
+            current_floor_points_idx = np.append(current_floor_points_idx, layer.points_idx)
+
+        floor = Floor("Floor " + str(top_floor), pcd, current_floor_points_idx)
+        segmentised_floors.append(floor)
 
         self.print_result(segmentised_floors, start)
 
@@ -57,71 +63,104 @@ class FloorSegmentation:
 
         return segmentised_floors
 
+    def get_bounding_box(self, pcd):
+        '''Calculates the bounding box of the given point cloud
+        Args:
+            pcd: Point Cloud
+        Returns:
+            A dictionary with the min and max boundaries of the point cloud.
+        '''
+        bounding_box = pcd.get_axis_aligned_bounding_box()
+        bounding_box_info = {}
+        bounding_box_info["min_x"] = bounding_box.min_bound[0]
+        bounding_box_info["min_y"] = bounding_box.min_bound[1]
+        bounding_box_info["min_z"] = bounding_box.min_bound[2]
+        bounding_box_info["max_x"] = bounding_box.max_bound[0]
+        bounding_box_info["max_y"] = bounding_box.max_bound[1]
+        bounding_box_info["max_z"] = bounding_box.max_bound[2] 
+        return bounding_box_info
 
 
-    def get_layers(self, pcd, bounding_box):
+    def get_layers(self, pcd):
+        ''' Divide the pointcloud along the z-direction into layers. 
+        Args:
+            pcd: Point cloud to be divided
+        Returns:
+            A list of instances of class Layer.
+        '''
         layers = []
-        layers_start_z = np.arange(bounding_box["min_z"], bounding_box["max_z"], Z_RESOLUTION)
+        bounding_box = self.get_bounding_box(pcd)
+
+        layers_start_z = np.arange( bounding_box["min_z"], 
+                                    bounding_box["max_z"], 
+                                    Z_RESOLUTION)
+
         for z in layers_start_z:
             layer_bounding_box = o3d.geometry.AxisAlignedBoundingBox(
                 [bounding_box["min_x"], bounding_box["min_y"], z],
                 [bounding_box["max_x"], bounding_box["max_y"], z + Z_RESOLUTION]
             )
-            points_idx_in_layer = layer_bounding_box.get_point_indices_within_bounding_box(pcd.points)
-            layers.append({
-                "points_idx": points_idx_in_layer,
-                "start_z": z,
-                "nbr_of_points": len(points_idx_in_layer)
-            })
+            layer = Layer(layer_bounding_box, pcd)
+            layers.append(layer)
+            
         return layers
 
-    def get_local_maximas_idx(self, values):
+    def get_potential_floor_level_height_layers(self, layers):
+        ''' Find layers that has the potential to represent floor level 
+        heights.
+        By setting the SHOW_HISTOGRAM to True the user can see a histogram
+        and adjust the FLOOR_LEVEL_HEIGHT_THRESSHOLD parameter to filter 
+        out floor levels. 
+        Args:
+            values: List of all layers.
+        Returns:
+            List of layers that could represent a floor level height
+        '''
+
+        nbr_of_points_in_layers = np.array([layer.nbr_of_points for layer in layers])
+        local_maximas = np.array(argrelextrema(nbr_of_points_in_layers, np.greater))
+        potential_maximas = local_maximas[nbr_of_points_in_layers[local_maximas] > FLOOR_LEVEL_HEIGHT_THRESSHOLD] 
+        # offset to make sure we dont't miss any points of this floor.
+        potential_maximas = potential_maximas - int(GROUND_OFFSET / Z_RESOLUTION)
         
-        potential_maximas = np.array(argrelextrema(values, np.greater))
-        potential_maximas = potential_maximas[values[potential_maximas] > GROUND_FLOOR_THRESSHOLD] 
-        potential_maximas = potential_maximas - int(GROUND_OFFSET/Z_RESOLUTION) # offset to make sure we dont't miss any points.
-        self.print(potential_maximas)
         if SHOW_HISTOGRAM:
-            #For tuning GROUND_FLOOR_THRESSHOLD:
-            plt.plot(np.arange(0, len(values))/10, values)
-            plt.plot(np.arange(0, len(values))/10, 100000*np.ones((len(values), 1)))
+            #For tuning FLOOR_LEVEL_HEIGHT_THRESSHOLD:
+            plt.plot(np.arange(0, len(nbr_of_points_in_layers))/10, nbr_of_points_in_layers)
+            plt.plot(np.arange(0, len(nbr_of_points_in_layers))/10, 100000*np.ones((len(nbr_of_points_in_layers), 1)))
             plt.ylabel('Number of points')
             plt.xlabel('Height [m]')
             plt.title('Number of Points on Different Heights')
             plt.show()
 
-        return potential_maximas
+        return [layers[i] for i in potential_maximas]
 
-
-    def get_ground_layers_idx(self, potential_ground_layers_idx, start_z_of_layers):
-        ground_layers_idx = []
-        potential_ground_layer_idx = potential_ground_layers_idx[0]
-        potential_grounds_z = start_z_of_layers[potential_ground_layer_idx]
-        for idx in potential_ground_layers_idx[1:]:
-            if start_z_of_layers[idx] - potential_grounds_z > MIN_FLOOR_HEIGHT:
-                ground_layers_idx.append(potential_ground_layer_idx)
-            potential_ground_layer_idx = idx
-            potential_grounds_z = start_z_of_layers[idx]
+    def get_floor_height_layers(self, potential_layers): 
+        ''' Filters out real floor heights from potential floor heights by 
+        making sure there is at least MIN_FLOOR_HEIGHT between the floors.
+        Args:
+            potential_layers: List of Layers that could be floor level height layers
+        Returns
+            A list of Layer that represent the floor level heights        
+        '''    
         
-        ground_layers_idx.append(potential_ground_layer_idx)
+        floor_height_layers = []
+        prev_layer = potential_layers[0]
+        #potential_ground_layer_idx = potential_ground_layers_idx[0]
+        #potential_grounds_z = start_z_of_layers[potential_ground_layer_idx]
+        for layer in potential_layers[1:]:
+            if layer.start_z - prev_layer.start_z > MIN_FLOOR_HEIGHT:
+                floor_height_layers.append(prev_layer)
+            prev_layer = layer
         
-        return ground_layers_idx
+        #Since the upper floor does not have a roof:
+        floor_height_layers.append(layer)
         
-
-    def get_bounding_box(self, pcd):
-        bounding_box = pcd.get_axis_aligned_bounding_box()
-        min_bounds = np.min(np.asarray(bounding_box.get_box_points()), axis=0)
-        max_bounds = np.max(np.asarray(bounding_box.get_box_points()), axis=0)
-        bounding_box_info = {}
-        bounding_box_info["min_x"] = min_bounds[0]
-        bounding_box_info["min_y"] = min_bounds[1]
-        bounding_box_info["min_z"] = min_bounds[2]
-        bounding_box_info["max_x"] = max_bounds[0]
-        bounding_box_info["max_y"] = max_bounds[1]
-        bounding_box_info["max_z"] = max_bounds[2] 
-        return bounding_box_info
+        return floor_height_layers
+    
 
     def print_result(self, segmentised_floors, start):
+        ''' Prints result data of the floor segmentation.
+        '''
         end = timeit.default_timer()
         self.print("="*20)
         self.print("FLOOR SEGMENTATION")
@@ -137,21 +176,10 @@ class FloorSegmentation:
         self.print("="*20)
 
     def visualze_segmentized_floors(self, segmentized_floors):
-        '''
-        Not working properly right now.
+        ''' Visualizes the floors in different colors
         '''
         draw_elements = []
-        for nr, floor in enumerate(segmentized_floors[0:2]):
-            z = floor.min_z
-            x = 0 #(floor.max_x - floor.min_x) / 2
-            y = 0 #(floor.max_y - floor.min_y) / 2
-            x_size = floor.max_x - floor.min_x
-            y_size = floor.max_y - floor.min_y
-            center = [x, y, z]
-            #mesh_box = o3d.geometry.TriangleMesh.create_box(width= x_size, height=y_size, depth=0.05)
-            #mesh_box.paint_uniform_color(np.array([1,0,0]))
-            #mesh_box.translate(center)
-            #draw_elements.append(mesh_box)
+        for nr, floor in enumerate(segmentized_floors):
             pcd = floor.pcd
             pcd.paint_uniform_color(np.array([nr,0,1]))
             draw_elements.append(pcd)

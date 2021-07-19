@@ -29,58 +29,42 @@ class TerrainAssessment():
         self.pcd = pcd.raw_pcd
         self.points = pcd.points
         self.pcd_kdtree = pcd.kdtree
-        self.traversable_points_idx = np.array([])
         
-
         self.floor_segmentation = FloorSegmentation(print)
         self.elevation_detector = ElevationDetector(print)
         self.traversability_detector = TraversabilityDetector(print)
         
 
-    def analyse_terrain(self):
-        start_total = timeit.default_timer()
-        self.full_pcd = []
-        self.traversable_points_idx = np.array([], int)
+    def get_coverable_points_idx(self):
+        """ Analyses point cloud to find all coverable points in 3 steps:
+            1. Floor Segmentation
+            2. Elevation Detection
+            3. Traversability Detection
+        Returns:
+            Indexes of all coverable points in the point cloud. 
+        """
 
-        if DO_TERRAIN_ASSESSMENT:       
-            segmentized_floors = self.floor_segmentation.get_segmentized_floors(self.pcd)
-            for floor in segmentized_floors[0:2]:
+        coverable_points_idx = np.array([], int)
 
-                self.print("="*20)
-                self.print(floor.name)                
-                self.elevation_detector.find_elevation(self.pcd, floor)
-                self.traversable_points_idx = np.append(self.traversable_points_idx, self.traversability_detector.get_traversable_points_idx(self.pcd, floor))
-
-            with open('cached_segmentized_floors.dictionary', 'wb') as cached_pcd_file:
-                floors = []
-                for floor in segmentized_floors:
-                    floors.append({
-                        "name": floor.name,
-                        "points_idx": floor.points_idx_in_full_pcd,
-                        "cell_grid": floor.cells_grid,
-                        "min_x": floor.min_x,
-                        "min_y": floor.min_y,
-                        "min_z": floor.min_z,
-                        "max_z": floor.max_z
-                    })
-                cache_data = {
-                    "segmentized_floors": floors,
-                    "traversable_points_idx": self.traversable_points_idx,
-                }
-                pickle.dump(cache_data, cached_pcd_file)
-
-        else:              
-
-
-            with open('cached_segmentized_floors.dictionary', 'rb') as cached_pcd_file:
-                cache_data = pickle.load(cached_pcd_file)
-                segmentized_floors = cache_data["segmentized_floors"]
-                self.traversable_points_idx = cache_data["traversable_points_idx"]
+        segmentized_floors = self.floor_segmentation.get_segmentized_floors(self.pcd)
         
-        covered_ground_pcd = False
+        for floor in segmentized_floors:
+            self.print("="*20)
+            self.print(floor.name)                
+            self.elevation_detector.find_elevation(self.pcd, floor)
+            new_coverable_points_idx = self.traversability_detector.get_traversable_points_idx(self.pcd, floor)
+            coverable_points_idx = np.append(coverable_points_idx, new_coverable_points_idx)
+
+        return coverable_points_idx
+
+
+    #CODE BELOW IS FOR ANALYSING TERRAIN ASSESSMENT AND RAMP
+    '''
+
+
+    def do_calculations_on_ramp(self):
+
         if CALCULATE_COVERAGE_ON_RAMP:
-
-
 
             covered_points, ground_points, draw_cylinders = self.get_covered_points(segmentized_floors)
             covered_ground_pcd_points = np.unique(covered_points, axis=0)
@@ -89,82 +73,28 @@ class TerrainAssessment():
             covered_ground_pcd.paint_uniform_color(np.array([0,0,1]))
             covered_ground_pcd.translate([0,0,0.03])
             self.print("Covered: " + str(len(covered_points)/ground_points))
-            
+
+    def visualize(self, pcd = False, cylinders = []):
+
         if VISUALIZE:
             draw_elements = []
             draw_elements.append( self.not_ground_pcd() )
             draw_elements.append( self.ground_pcd() )
-            draw_elements.extend( draw_cylinders )
-            if covered_ground_pcd:
-                draw_elements.append( covered_ground_pcd )
-            o3d.visualization.draw_geometries(draw_elements, zoom=0.3412, front=[0.4257, -0.2125, -0.8795], lookat=[2.6172, 2.0475, 1.532], up=[-0.0694, -0.9768, 0.2024], point_show_normal=True)
-  
-            '''
-            for x_idx, y_idx in np.ndindex(floor.cells_grid.shape):
-
-                if floor.cells_grid[x_idx, y_idx] is None:
-                    continue
-
-                #if not floor.cells_grid[x_idx, y_idx].is_traversable:
-                #    continue
-                x = x_idx * CELL_SIZE + floor.min_x + CELL_SIZE/2
-                y = y_idx * CELL_SIZE + floor.min_y + CELL_SIZE/2
-                z = floor.cells_grid[x_idx, y_idx].elevation 
-                z = floor.min_z
-                center = [x,y,z]
-                mesh_box = o3d.geometry.TriangleMesh.create_box(width= CELL_SIZE, height=CELL_SIZE, depth=0.05)
-                #mesh_box.compute_vertex_normals()
-                mesh_box.paint_uniform_color(np.array([1,0,0]))
-                mesh_box.translate(center)
-                #self.full_pcd.append(polygon_pcd)
-                self.full_pcd.append(mesh_box)
-            '''
-            #self.pcd.paint_uniform_color([0.0,0.0,0.0])
-            #removed_ground = np.asarray(self.pcd.points)
-            #removed_ground_1 = np.delete(removed_ground, self.traversable_points_idx)
-            #self.pcd.points = o3d.utility.Vector3dVector(removed_ground_1)
-            #self.full_pcd.append( self.pcd )
-
-            
-
-
-            
-
-
-
-            
-            
-            
-
-            
-            ##ground_pcd.translate([0,0,0.03])
-            #self.full_pcd.append(ground_pcd)
-            #self.ground_pcd = ground_pcd
-            #self.print_results(segmentized_floors)
-
-            
-            #self.full_pcd.append(covered_ground_pcd)
-            
-            #nbr_of_ground_points = len(np.unique(np.asarray(ground_pcd.points), axis=0))
-            #nbr_of_covered_ground_points = len(np.unique(np.asarray(covered_ground_pcd.points), axis=0))
-            #self.print("ground_pcd: " + str(nbr_of_ground_points))
-            #self.print("covered_ground_pcd: " + str(nbr_of_covered_ground_points))
-            #self.print("percentage: " + str(nbr_of_covered_ground_points / nbr_of_ground_points))
-
-
-            
-        
-
- 
-        
-
-        return 
+            draw_elements.extend( cylinders )
+            if pcd:
+                draw_elements.append( pcd )
+            o3d.visualization.draw_geometries(  draw_elements, 
+                                                zoom=0.3412, 
+                                                front=[0.4257, -0.2125, -0.8795], 
+                                                lookat=[2.6172, 2.0475, 1.532], 
+                                                up=[-0.0694, -0.9768, 0.2024], 
+                                                point_show_normal=True)             
 
     
 
     def not_ground_pcd(self):
         not_ground_pcd_points = np.asarray(self.pcd.points)
-        not_ground_pcd_points = np.delete(not_ground_pcd_points, self.traversable_points_idx, axis=0)
+        not_ground_pcd_points = np.delete(not_ground_pcd_points, self.coverable_points_idx, axis=0)
         not_ground_pcd = o3d.geometry.PointCloud()
         not_ground_pcd.points = o3d.utility.Vector3dVector(not_ground_pcd_points)
         not_ground_pcd.paint_uniform_color(np.array([0.2,0.2,0.2]))
@@ -172,7 +102,7 @@ class TerrainAssessment():
         return not_ground_pcd
 
     def ground_pcd(self):
-        ground_pcd_points = np.asarray(self.pcd.points)[self.traversable_points_idx]
+        ground_pcd_points = np.asarray(self.pcd.points)[self.coverable_points_idx]
         ground_pcd = o3d.geometry.PointCloud()
         ground_pcd.points = o3d.utility.Vector3dVector(ground_pcd_points)
         ground_pcd.paint_uniform_color(np.array([0,1,0]))
@@ -392,7 +322,7 @@ class TerrainAssessment():
             ##self.full_pcd.append(mesh_cylinder)
             #continue
 
-
+    '''
 
 
 
