@@ -170,7 +170,7 @@ class RandomBAstar(CPPSolver):
     
 
     def get_random_sampled_points_simple(self, visited_points_idx):
-        pcd = PointCloud(self.print, points=self.motion_planner.pcd.points)
+        pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
         pcd.visited_points_idx = visited_points_idx
         waypoints = np.empty((0,3))
         uncovered_points_idx = self.delete_values(np.arange(len(pcd.points)), visited_points_idx)
@@ -227,7 +227,7 @@ class RandomBAstar(CPPSolver):
         return waypoints
 
     def get_random_sampled_points(self, visited_points_idx):
-        pcd = PointCloud(self.print, points=self.motion_planner.pcd.points)
+        pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
         pcd.visited_points_idx = visited_points_idx
 
         waypoints = np.empty((0,3))
@@ -302,7 +302,7 @@ class RandomBAstar(CPPSolver):
         sorted_paths = []
         start_points = []
         end_points = []
-        pcd = PointCloud(self.print, points=self.motion_planner.pcd.points)
+        pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
 
         for path in paths:
             sorted_paths.append(path)
@@ -316,7 +316,7 @@ class RandomBAstar(CPPSolver):
         sorted_paths = []
         start_points = []
         end_points = []
-        pcd = PointCloud(self.print, points=self.motion_planner.pcd.points)
+        pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
         prev_coverage = 0
         BAstar_paths_unvisited_points_length = [0]*len(BAstar_paths)
         uncovered_paths = [i for i in BAstar_paths]

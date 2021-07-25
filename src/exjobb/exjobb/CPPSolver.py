@@ -12,34 +12,48 @@ import linecache
 
 from networkx.algorithms.shortest_paths.weighted import _weight_function
 from exjobb.MotionPlanner import MotionPlanner
-from exjobb.Parameters import ROBOT_SIZE, ROBOT_STEP_SIZE
+from exjobb.Parameters import ROBOT_SIZE, ROBOT_RADIUS
+
 ROBOT_RADIUS = ROBOT_SIZE/2
 STEP_SIZE = ROBOT_SIZE
 UNTRAVERSABLE_THRESHHOLD = 1.5*STEP_SIZE
 
 class CPPSolver:
+    ''' Abstract class of a Coverage Path Problem Solver
+    '''
 
-    def __init__(self, logger, motion_planner):
+    def __init__(self, print, motion_planner):
+        '''
+        Args:
+            print: function for printing messages
+            motion_planner: Motion Planner of the robot wihch also has the Point Cloud
+        '''
         self.name = "General CPP"
-        self.logger = logger
-        self.pcd = motion_planner.pcd
+        self.print = print
+        self.pcd = motion_planner.traversable_pcd
         self.motion_planner = motion_planner
         self.current_position = None
-        self.path = np.empty((0,3))
-    
-    
+        self.path = np.empty((0,3))    
+        self.points_to_mark = np.empty((0,3))
 
     def start_tracking(self):
+        ''' Start the tracking of computational time and memory consumption
+        '''
         tracemalloc.start()
         self.start_time = timeit.default_timer()
 
     def print_stats(self, path):
+        ''' Prints stats about the generated path
+        Args:
+            path: A Nx3 array with waypoints
+        '''
         end_time = timeit.default_timer()
         snapshot = tracemalloc.take_snapshot()
         nbr_of_points_in_path = len(path)
 
         def get_memory_consumption(snapshot, key_type='lineno'):
-            #To see consumtion per line: https://docs.python.org/3/library/tracemalloc.html
+            ''' Calculates memory consumption of the algorithm in KiB
+            '''
             snapshot = snapshot.filter_traces((
                 tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
                 tracemalloc.Filter(False, "<unknown>"),
@@ -49,13 +63,18 @@ class CPPSolver:
             return total / 1024
         
         def get_length_of_path(path):
+            ''' Calculates length of the path in meters
+            '''
             length = 0
             for point_idx in range(len(path) - 1):
                 length += np.linalg.norm( path[point_idx] - path[point_idx + 1] )
             return length
 
         def get_total_rotation(path):
+            ''' Calculates the total rotation made by the robot while executing the path
+            '''
             rotation = 0
+
             for point_idx in range(len(path) - 2):
                 prev = (path[point_idx+1] - path[point_idx]) / np.linalg.norm( path[point_idx] - path[point_idx + 1])
                 next = (path[point_idx+2] - path[point_idx+1]) / np.linalg.norm( path[point_idx+2] - path[point_idx + 1])
@@ -63,6 +82,7 @@ class CPPSolver:
                 curr_rotation = np.arccos(dot_product)
                 if not np.isnan(curr_rotation):
                     rotation += abs(curr_rotation)
+
             return rotation
 
         length_of_path = get_length_of_path(path)
@@ -85,20 +105,32 @@ class CPPSolver:
         
 
         print_text += "\n" + "=" * 20
-        self.logger.info(print_text)
+        self.print(print_text)
 
 
     def follow_path(self, path):
-        self.path = np.append( self.path, path, axis=0 )
-        self.pcd.visit_path(path)
+        ''' Makes the robot follow a path. Marks points along the way as visited.
+        Args:
+            path: A Nx3 array with waypoints
+        '''
+        if len(path) > 0 and len(self.path) > 0:
+            if np.array_equal(self.path[-1], path[0]):
+                path = path[1:]
 
-    def move_to(self, point):
+            if len(path):
+                self.path = np.append( self.path, path, axis=0 )
+                self.pcd.visit_path(path)
+
+    def move_to(self, position):
+        ''' Makes the robot go to a specific position. Marks points along the way as visited.
+        Args:
+            position: A [x,y,z] array with the position
+        '''
         if len(self.path) > 0:
             curr_position = self.path[-1]
-            self.pcd.visit_path_to_position(point, curr_position)
+            self.pcd.visit_path_to_position(position, curr_position)
+        else:
+            self.pcd.visit_position(position)
             
-        self.path = np.append( self.path, [point], axis=0 )
+        self.path = np.append( self.path, [position], axis=0 )
         
-
-    def print(self, object_to_print):
-        self.logger.info(str(object_to_print))

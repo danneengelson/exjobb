@@ -32,7 +32,7 @@ REACHED = 2
 class PlanePath():
     def __init__(self, print, motion_planner, starting_point, angle_offset, visited_waypoints):
         self.start = starting_point
-        self.pcd = PointCloud(print, points=motion_planner.pcd.points)
+        self.pcd = PointCloud(print, points=motion_planner.traversable_points)
         self.motion_planner = motion_planner
         self.path = np.array([starting_point])
         self.visited_waypoints = visited_waypoints

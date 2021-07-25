@@ -52,7 +52,7 @@ class TerrainAssessment():
             self.print("="*20)
             self.print(floor.name)                
             self.elevation_detector.find_elevation(self.pcd, floor)
-            new_coverable_points_idx = self.traversability_detector.get_traversable_points_idx(self.pcd, floor)
+            new_coverable_points_idx = self.traversability_detector.get_coverable_points_idx(self.pcd, floor)
             coverable_points_idx = np.append(coverable_points_idx, new_coverable_points_idx)
 
         return coverable_points_idx

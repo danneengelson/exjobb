@@ -1,68 +1,69 @@
 import numpy as np
-import open3d as o3d
 import timeit
 from exjobb.PointCloud import PointCloud
-import collections
-from exjobb.Parameters import CELL_SIZE, ROBOT_STEP_SIZE, ROBOT_SIZE
-import pickle
-import os
+from exjobb.Parameters import ROBOT_SIZE, MARGIN
+
+
 
 class RobotTraversability():
+    ''' Class for calculating points where a robot could go without collision.
+    '''
 
     def __init__(self, print, pcd):
+        ''' 
+        Args:
+            print: function for printing messages
+            pcd: Point Cloud of the environment.
+        '''
         self.pcd = pcd     
-
         self.print = print        
 
-    def get_traversable_points_for_robot_idx(self, ground_points_idx):
-        ##only for rviz
-        self.ground_points_idx =  ground_points_idx
-        ##
-
+    def get_traversable_points_idx(self, ground_points_idx):
+        ''' Given some points, find those which are traversable by the robot,
+        given robot size specifics. go through every point in the point cloud 
+        that is classified as obstacle and filter out ground points that are 
+        close.
+        Args:
+            ground_points_idx:  indexes of points in the point cloud that are 
+                                classified as obstacle free.
+        '''
         start_total = timeit.default_timer()
-        is_traversable = 0
-        self.loop = 0
+                
+        all_points_idx = range(len(self.pcd.points))
+        obstacle_points_idx = np.delete(all_points_idx, ground_points_idx)
         
-        pcd_points_idx = range(len(self.pcd.points))
-        not_ground_points_idx = np.delete(pcd_points_idx, ground_points_idx)
-        
-        self.not_ground_point_cloud = PointCloud(self.print, points= self.pcd.points[not_ground_points_idx])
+        self.obstacle_point_cloud = PointCloud(self.print, points= self.pcd.points[obstacle_points_idx])
         self.ground_point_cloud = PointCloud(self.print, points= self.pcd.points[ground_points_idx])
 
         traversable_points = ground_points_idx
-        not_ground_points_idx_queue = not_ground_points_idx
+        obstacle_points_idx_queue = obstacle_points_idx
         
-        while len(not_ground_points_idx_queue) > 0: 
-            self.print(len(not_ground_points_idx_queue))
+        while len(obstacle_points_idx_queue) > 0: 
             
-            not_ground_point_idx, not_ground_points_idx_queue = not_ground_points_idx_queue[0], not_ground_points_idx_queue[1:]
+            obstacle_point_idx, obstacle_points_idx_queue = obstacle_points_idx_queue[0], obstacle_points_idx_queue[1:]
             
-            point = self.pcd.points[not_ground_point_idx]
-            distance_to_nearest = self.ground_point_cloud.distance_to_nearest(point)
+            point = self.pcd.points[obstacle_point_idx]
+            distance_to_nearest_ground_point = self.ground_point_cloud.distance_to_nearest(point)
             
 
-            if distance_to_nearest > 0.25 and distance_to_nearest < ROBOT_SIZE:                
-                points_nearby = self.pcd.points_idx_in_radius(point, 1.5*ROBOT_SIZE)
-                traversable_points = self.delete_values(traversable_points, points_nearby)
-                points_close_nearby = self.pcd.points_idx_in_radius(point, ROBOT_SIZE/2)
-            elif distance_to_nearest <= 0.25:
-                points_close_nearby = self.pcd.points_idx_in_radius(point, 0.25)
+            if distance_to_nearest_ground_point > MARGIN and distance_to_nearest_ground_point < ROBOT_SIZE:                
+                collision_risk_points = self.pcd.points_idx_in_radius(point, 1.5*ROBOT_SIZE)
+                traversable_points = self.delete_values(traversable_points, collision_risk_points)
+                points_nearby = self.pcd.points_idx_in_radius(point, ROBOT_SIZE/2)
+            elif distance_to_nearest_ground_point <= MARGIN:
+                points_nearby = self.pcd.points_idx_in_radius(point, MARGIN)
             else:
-                points_close_nearby = self.pcd.points_idx_in_radius(point, distance_to_nearest-ROBOT_SIZE)
+                points_nearby = self.pcd.points_idx_in_radius(point, distance_to_nearest_ground_point-ROBOT_SIZE)
 
-            not_ground_points_idx_queue = self.delete_values(not_ground_points_idx_queue, points_close_nearby)
-
-            
-
-        self.print("total: " + str(timeit.default_timer() - start_total))
+            obstacle_points_idx_queue = self.delete_values(obstacle_points_idx_queue, points_nearby)
 
         return self.pcd.points[traversable_points]
 
-        
 
     def delete_values(self, array, values):
+        ''' Removes specific values from an array
+        Args:
+            array: NumPy array to remove values from
+            values: NumPy array with values that should be removed.
+        '''
         return array[ np.isin(array, values, assume_unique=True, invert=True) ]
-
-
-    def get_info(self, point):
-        self.print("distance_to_nearest" + str(self.ground_point_cloud.distance_to_nearest(point)))

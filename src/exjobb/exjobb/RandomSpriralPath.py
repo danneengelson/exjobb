@@ -19,7 +19,7 @@ class SpiralPath:
         self.full_path = visited_points
         self.start = starting_point
         self.print = print 
-        self.pcd = PointCloud(print, points=motion_planner.pcd.points)
+        self.pcd = PointCloud(print, points=motion_planner.traversable_points)
         self.motion_planner = motion_planner
         current_angle = 0
 

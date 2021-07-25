@@ -1,61 +1,84 @@
 
-from exjobb.Parameters import ROBOT_STEP_SIZE, GROUND_OFFSET
 import numpy as np
 import timeit
 import operator
 
+from exjobb.Parameters import ROBOT_STEP_SIZE, GROUND_OFFSET
+
+
 class TraversabilityDetector:
+    ''' Class for detecting obstacles and unaccessible areas from the DEM, Discrete
+    Elevation Model to find coverable areas.
+    '''
     def __init__(self, print):
+        ''' 
+        Args:
+            print: function for printing messages
+        '''
         self.print = print
 
-    def get_traversable_points_idx(self, full_pcd,floor):
+    def get_coverable_points_idx(self, full_pcd, floor):
+        ''' Finds points that are accessable. No robot size properties are taken into concern.
+        Args:
+            full_pcd: Point Cloud of the environment including other floors.
+            floor: Floor instance with the DEM.
+        '''
         start = timeit.default_timer()
-        ground_cells_pos_list = self.get_ground_cells_pos_list(floor)
-        #self.print("ground_cells_pos_list: " + str(len(ground_cells_pos_list)))
+        ground_cells_poses = self.get_ground_cells_poses(floor)
 
-        ground_cells_pos_list = self.assign_with_breadth_first(ground_cells_pos_list, floor)
+        accessible_cells_poses = self.get_accessible_cells_poses(ground_cells_poses, floor)
 
 
-        traversable_points = np.array([], int)
-        for pos in ground_cells_pos_list:
-            pos = tuple(pos)
+        coverable_points_idx = np.array([], int)
+        for pos in accessible_cells_poses:
             points_idx_in_cell = floor.cells_grid[pos].points_idx_in_full_pcd 
-            
-            ground_points_idx_in_cell = self.get_points_below_z(full_pcd, points_idx_in_cell, floor.cells_grid[pos].elevation)
-            #ground_points_idx_in_cell = points_idx_in_cell
-            traversable_points = np.append(traversable_points, ground_points_idx_in_cell )
+            #####
+            elevation = floor.cells_grid[pos].elevation 
+            ###
+            points_in_cell = np.asarray(full_pcd.points)[points_idx_in_cell]
+            new_coverable_points_idx = self.get_coverable_points_idx_in_cell(points_in_cell, points_idx_in_cell, elevation)
+            coverable_points_idx = np.append(coverable_points_idx, new_coverable_points_idx )
         
-        
-        traversable_points = np.unique(traversable_points)
-        self.print_result(start, len(traversable_points), len(ground_cells_pos_list))
-        #self.print(traversable_points)
-        return traversable_points
+        coverable_points_idx = np.unique(coverable_points_idx)
+        self.print_result(start, coverable_points_idx, accessible_cells_poses)
+
+        return coverable_points_idx
 
     
-    def assign_with_breadth_first(self, ground_cells_pos_list, floor):
+    def get_accessible_cells_poses(self, ground_cells_poses, floor):
+        ''' Using breadth first to find all accessable poses. Uses ground cells as
+        starting points, which creates mulitple islands of connected cells.
+        The cells of the island with most cells are chosen as accessable.
+        Args:
+            ground_cells_poses: positions of all ground level cells
+            floor: Floor instance with the DEM.
+        '''
         
         all_islands = []
-        ground_cell_pos_queue = [tuple(pair) for pair in ground_cells_pos_list]
+        ground_cells_queue = [tuple(pair) for pair in ground_cells_poses]
 
-        while len(ground_cell_pos_queue):
-            start_cell = ground_cell_pos_queue.pop()
+        while ground_cells_queue:
+            start_cell = ground_cells_queue.pop()
             visited_cells = [start_cell]
-            traversable_queue = [start_cell]
-            while len(traversable_queue):
-                current_pos = traversable_queue.pop()
-                for neigbour_pos in self.get_neighbour(current_pos, floor):
-                    
-                    if not self.is_traversable_from_pos(neigbour_pos, current_pos, floor):
-                        continue
+            traversable_cells_queue = [start_cell]
+            while traversable_cells_queue:
+                current_pos = traversable_cells_queue.pop()
+                for neigbour_pos in self.get_neighbours_poses(current_pos):
+
+                    if not floor.is_valid_cell(neigbour_pos):
+                        continue   
 
                     if neigbour_pos in visited_cells:
-                        continue
+                        continue 
+                    
+                    if not self.is_valid_step(current_pos, neigbour_pos, floor):
+                        continue                    
 
-                    if neigbour_pos in ground_cell_pos_queue:
-                        ground_cell_pos_queue.remove(neigbour_pos)
+                    if neigbour_pos in ground_cells_queue:
+                        ground_cells_queue.remove(neigbour_pos)
 
                     visited_cells.append(neigbour_pos)
-                    traversable_queue.append(neigbour_pos)
+                    traversable_cells_queue.append(neigbour_pos)
                 
             all_islands.append(visited_cells)
 
@@ -68,28 +91,40 @@ class TraversabilityDetector:
         return cells_in_biggest_island
 
 
-    def get_neighbour(self, cell, floor):
-        #directions = [(1,0), (0,1), (-1, 0), (0, -1), (1, 1), (-1,1), (-1, -1), (1, -1)]
+    def get_neighbours_poses(self, cell):
+        ''' Returns the position of the north, south, west an east neighbour of a given cell.
+        Args:
+            cell: tuple with an arbitary position
+        '''
+
         directions = [(1,0), (0,1), (-1, 0), (0, -1)]
         neighbours = []
         for dir in directions:
             neighbour = tuple(map(operator.add, cell, dir))
-            if floor.is_valid_cell(neighbour):
-                neighbours.append(neighbour)
+            neighbours.append(neighbour)
 
         return neighbours
     
-    def is_traversable_from_pos(self, neigbour_pos, ground_pos, floor):
-        #self.print(ground_pos)
-        #self.print(neigbour_pos)
-        ground_pos_elevation = floor.cells_grid[ground_pos]
-        neigbour_pos_elevation = floor.cells_grid[neigbour_pos]
-        #self.print("ground_pos_elevation" + str(ground_pos_elevation))
-        #self.print("neigbour_pos_elevation" + str(neigbour_pos_elevation))
-        return abs(neigbour_pos_elevation.elevation - ground_pos_elevation.elevation) <= ROBOT_STEP_SIZE
+    def is_valid_step(self, from_pos, to_pos, floor):
+        ''' Checks whether a step from one cell to another is possible by
+        looking at the height difference between the cells.
+        Args:
+            from_pos: tuple (x,y) representing the position of the start cell
+            to_pos: tuple (x,y) representing the position of the goal cell
+            floor: Floor instance with the DEM.
+        '''
+        ground_pos_elevation = floor.cells_grid[from_pos].elevation
+        neigbour_pos_elevation = floor.cells_grid[to_pos].elevation
 
-    def get_ground_cells_pos_list(self, floor):
-        ground_level_cells_pos_list = []
+        return abs(neigbour_pos_elevation - ground_pos_elevation) <= ROBOT_STEP_SIZE
+
+    def get_ground_cells_poses(self, floor):
+        ''' Finds all ground level cells in the floor.
+        Args:
+            floor: Floor instance with the DEM. 
+        Returns:
+            A list of ground cell positions in a tuple format (x,y)
+        '''
 
         def is_ground_level_cell(cell):
             if cell is None:
@@ -101,26 +136,25 @@ class TraversabilityDetector:
 
         return ground_level_cells.tolist()
 
-    def get_points_below_z(self, pcd, points_idx, z):     
-        lowest_z = np.min(  np.asarray(pcd.points)[points_idx][:,2])
+    def get_coverable_points_idx_in_cell(self, points, points_idx, elevation):  
+        ''' Finds points in the cell that are coverable by taking the points close
+        to the elvation level of the cell.
+        Args:
+            points: Nx3 array with all points in the cell
+            points_idx: indicies of these points in the full point cloud.        
+        '''
+        z_values = points[:,2]        
+        coverable = np.where(  abs(z_values - elevation) < ROBOT_STEP_SIZE  )[0]
+        coverable = np.array(coverable, int)
 
-        #if z - lowest_z >= ROBOT_STEP_SIZE:
-        #    points_below_z = np.where(  np.asarray(pcd.points)[points_idx][:,2] <= lowest_z + ROBOT_STEP_SIZE  )
-        #else:
-        #    points_below_z = np.where(  np.asarray(pcd.points)[points_idx][:,2] <= z  )  
-
-        points_below_z = np.where(  np.asarray(pcd.points)[points_idx][:,2] <= lowest_z + 2*ROBOT_STEP_SIZE  )[0]
-        #points_below_z = np.where(  np.asarray(pcd.points)[points_idx][:,2] <= z  )[0]
-        #points_over_robot_step = np.where(  np.asarray(pcd.points)[points_idx][:,2] > z - ROBOT_STEP_SIZE )[0]
-        
-        #idx_in_points_idx = np.array(np.intersect1d(points_below_z, points_over_robot_step), int)
-        idx_in_points_idx = np.array(points_below_z, int)
-        return np.take(points_idx, idx_in_points_idx)
+        return np.take(points_idx, coverable)
  
-    def print_result(self, start, traversable_points, traversable_cells):
+    def print_result(self, start, coverable_points, coverable_cells):
+        ''' Prints result data of the floor segmentation.
+        '''
         end = timeit.default_timer()
         self.print("-"*20)
-        self.print("FIND TRAVERSABLE POINTS")
+        self.print("FIND COVERABLE POINTS")
         self.print("Computational time: " + str(round(end - start, 1)) + " sec")
-        self.print("Number of traversable points: " + str(traversable_points))
-        self.print("Number of traversable cells: " + str(traversable_cells))
+        self.print("Number of coverable points: " + str(len(coverable_points)))
+        self.print("Number of coverable cells: " + str(len(coverable_cells)))
