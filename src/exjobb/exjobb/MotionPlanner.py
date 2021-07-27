@@ -43,7 +43,7 @@ class MotionPlanner():
         nbr_of_points_in_pcd = len(self.traversable_pcd.points)
 
         def get_random_point():
-            return self.pcd.points[np.random.randint(nbr_of_points_in_pcd)]
+            return self.traversable_pcd.points[np.random.randint(nbr_of_points_in_pcd)]
 
         for i in range(RRT_MAX_ITERATIONS):
             random_point = get_random_point()
@@ -97,7 +97,7 @@ class MotionPlanner():
         full_tree = nx.disjoint_union(tree_1.tree, tree_2.tree)
         full_nodes = np.append(tree_1.nodes, tree_2.nodes, axis=0)
         connection_idx_tree_1 = len(tree_1.nodes) - 1
-        connection_idx_tree_2 = tree_2.nearest_node(connection_point)
+        connection_idx_tree_2 = tree_2.nearest_node(connection_point)[0]
         connection_idx_tree_2_full_tree = connection_idx_tree_1 + connection_idx_tree_2 + 1        
         full_tree.add_edge(connection_idx_tree_1, connection_idx_tree_2_full_tree, weight=0)
 

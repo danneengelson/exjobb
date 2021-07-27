@@ -1,8 +1,7 @@
 import numpy as np
-import timeit
 
 from exjobb.CPPSolver import CPPSolver 
-from exjobb.Parameters import ROBOT_RADIUS, BASTAR_STEP_SIZE, BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL
+from exjobb.Parameters import BASTAR_STEP_SIZE, BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL
 
 class BAstar(CPPSolver):
     ''' Solving the Coverage Path Planning Problem with BAstar
@@ -16,11 +15,12 @@ class BAstar(CPPSolver):
         super().__init__(print, motion_planner)
         self.name = "BAstar"
 
-    def get_cpp_path(self, start_point):
+    def get_cpp_path(self, start_point, angle_offset=0):
         """Generates a path that covers the area using BAstar Algorithm.
 
         Args:
             start_point: A [x,y,z] np.array of the start position of the robot
+            angle_offset (optional): Angle in radians of the main direction of the paths.
 
         Returns:
             Nx3 array with waypoints
@@ -42,17 +42,18 @@ class BAstar(CPPSolver):
 
         while coverage < COVEREAGE_EFFICIENCY_GOAL:
             
-            path_length, current_position = self.cover_local_area(starting_point)
+            path_to_cover_local_area, current_position = self.get_path_to_cover_local_area(starting_point, angle_offset)
 
-            if path_length == 0:
-                self.print("No path found when covering local area!")          
+            if len(path_to_cover_local_area) == 0:
+                self.print("No path found when covering local area!")  
+
+            self.follow_path(path_to_cover_local_area)        
             
-            backtracking_list = self.get_sorted_backtracking_list(self.path)     
+            next_starting_point = self.get_next_starting_point(self.path, angle_offset)     
 
-            if len(backtracking_list) == 0:
+            if next_starting_point is False:
+                self.print("No next_starting_point found")
                 break
-
-            next_starting_point = backtracking_list[0]
 
             path_to_next_starting_point = self.motion_planner.Astar(current_position, next_starting_point)
 
@@ -68,10 +69,14 @@ class BAstar(CPPSolver):
         return self.path
 
     def find_closest_wall(self, start_position):
+        """Using Breadth First Search to find the closest wall or obstacle.
 
-        def is_in_list(list, array):
-            diffs =  np.linalg.norm(list - array, axis=1)
-            return np.any(diffs < 0.01)
+        Args:
+            start_position: A [x,y,z] np.array of the start position of the search
+
+        Returns:
+            The position right before wall
+        """
 
         queue = np.array([start_position])
         visited = np.array([start_position])
@@ -81,106 +86,77 @@ class BAstar(CPPSolver):
             for neighbour in neighbours:
                 if not self.motion_planner.is_valid_step(current_position, neighbour):
                     return current_position
-
-                if is_in_list(visited, neighbour):
+                if self.is_in_list(visited, neighbour):
                     continue
                 
-                    
                 queue = np.append(queue, [neighbour], axis=0)
                 visited = np.append(visited, [neighbour], axis=0)
 
         return False
 
 
-
-
-    def get_next_starting_point(self, sorted_backtracking_list, visiting_rate_start = 0.7):
-        next_starting_point = False
-        visiting_rate = visiting_rate_start
-        while next_starting_point is False:
-            visiting_rate += 0.05
-            for idx, potential_starting_point in enumerate(sorted_backtracking_list):
-                visiting_rate_in_area = self.pcd.get_visiting_rate_in_area(potential_starting_point, 2*ROBOT_RADIUS)
-                if visiting_rate_in_area < visiting_rate:
-                    next_starting_point = potential_starting_point
-                    break
-        return next_starting_point, idx, visiting_rate
-
-
-
-    def get_path_to_cover_local_area(self, start_point):
+    def get_path_to_cover_local_area(self, start_point, angle_offset = 0):
         """Generates BAstar paths to cover local area.
 
         Args:
             start_point: A [x,y,z] np.array of the start position of the robot
+            angle_offset (optional): Angle in radians of the main direction of the paths.
 
         Returns:
-            [type]: [description]
+            Generated path with waypoints and the current position of the robot at the end
         """
        
         path_before = self.path
 
-        for angle_idx in range(1):
-            current_position = start_point
-            angle_offset = angle_idx * np.pi/4
-            current_path = path_before
-            critical_point_found = False
-            path_length = 0
-            local_path = np.empty((0,3))
+        current_position = start_point
+        current_full_path = path_before
+        critical_point_found = False
+        local_path = np.empty((0,3))
 
-            while not critical_point_found:
-                critical_point_found = True
-                neighbours = self.get_neighbours(current_position, angle_offset)
-                for index, neighbour in enumerate(neighbours):
-                    #self.print("potential neighbour: " + str(neighbour))
-                    if self.is_blocked(current_position, neighbour, current_path):
-                        continue
-
-                    #if index in [0,1]:
-                    #    east = neighbours[6]
-                    #    if not self.is_blocked(current_position, east, current_path):
-
-
-                    current_position = neighbour
-                    
-                    current_path = np.append( current_path, [neighbour], axis=0 )
-                    path_length += 1
-                    critical_point_found  = False
-                    #self.print("path: " + str(self.path))
-                    break
-
-            new_local_path = current_path [ len(path_before)-1: ]
-
-            if len(best_path) < len(new_local_path):
-                best_path = new_local_path
+        while not critical_point_found:
+            critical_point_found = True
+            neighbours = self.get_neighbours(current_position, angle_offset)
+            for neighbour in neighbours:
                 
-        self.pcd.visit_path(best_path)
-        self.path = np.append( self.path, best_path, axis=0 )
+                if self.is_blocked(current_position, neighbour, current_full_path):
+                    continue
 
-        current_position = best_path[-1]
-        return path_length, current_position
-        #path_to_cover_local_area = []
+                current_position = neighbour
+                
+                current_full_path = np.append( current_full_path, [neighbour], axis=0 )
+                local_path = np.append( local_path, [neighbour], axis=0 )
+
+                critical_point_found  = False
+
+                break
+
+        return local_path, current_position
         
 
-    def get_sorted_backtracking_list(self, path):
+    def get_next_starting_point(self, path, angle_offset = 0):
+        """Finds the next starting point by creating a backtrack list of possible points
+        and choose the closest one.
 
-        backtracking_list = np.empty((0,3))
-        #self.print("Backtracking_list 1: " + str(backtracking_list))
+        Args:
+            path: Waypoint with the path that has been made so far in a Nx3 array
+            angle_offset (optional): Angle in radians of the main direction of the paths.
+
+        Returns:
+            A position with an obstacle free uncovered point.
+        """
+
+        current_position = path[-1]
+        distances = np.linalg.norm(path - current_position, axis=1)
+        sorted_path_by_distance = path[np.argsort(distances)]
         
-        for point in path:
-            #self.print("Backtracking_list 2: " + str(backtracking_list))
+        for point in sorted_path_by_distance:
             def b(si, sj):
-                #self.print("si, sj: " + str((si, sj)))
-                #self.print("si valid: " + str(self.is_valid_step(point, si)))
-                #self.print("sj valid: " + str(self.is_valid_step(point, sj)))
                 if not self.is_blocked(point, si) and self.is_blocked(point, sj):
-                    #self.print("point: " + str(point))
-                    #self.print("not bloacked: " + str(si))
-                    #self.print("bloacked: " + str(sj))
                     return True
-                #self.print("Return 0")
+
                 return False
-            neighbours = self.get_neighbours(point)
+
+            neighbours = self.get_neighbours(point, angle_offset)
             s1 = neighbours[6] #east
             s2 = neighbours[2] #northeast
             s3 = neighbours[0] #north
@@ -192,29 +168,21 @@ class BAstar(CPPSolver):
             combinations =  [(s1, s8), (s1,s2), (s5,s6), (s5,s4), (s7,s6), (s7,s8)]
             for c in combinations:
                 if b(c[0], c[1]):
-                    backtracking_list = np.append( backtracking_list, [point], axis=0)
-                    break
-            #my = b(s1, s8) + b(s1,s2) + b(s5,s6) + b(s5,s4) + b(s7,s6) + b(s7,s8)
-            ##self.print("my" + str(my))
-            #if my >= 1:
-            #    backtracking_list = np.append( backtracking_list, [point], axis=0)
-                #self.print("Backtracking_list 3: " + str(backtracking_list))
+                    return point
 
-        #self.print("Length of backtracking_list: " + str(backtracking_list))
-
-        current_position = path[-1]
-        
-        distances = np.linalg.norm(backtracking_list - current_position, axis=1)
-        distances = distances[ distances > 0.1 ]
-        sorted_idx = np.argsort(distances)
-        
-        #closest_point_idx = np.argmin(distances)
-        #self.backtrack_list = backtracking_list
-
-        return backtracking_list[sorted_idx] #backtracking_list[closest_point_idx]
+        return False
 
 
-    def get_neighbours(self, current_position, angle_offset=np.pi/4):
+    def get_neighbours(self, current_position, angle_offset = 0):
+        """Finds all neighbours of a given position. 
+
+        Args:
+            current_position: A [x,y,z] np.array of the start position 
+            angle_offset: Angle offset in radians
+
+        Returns:
+            All 8 neighbours of the given position
+        """
         directions = []
         for direction_idx in range(8):
             angle = direction_idx/8*np.pi*2 + angle_offset
@@ -223,30 +191,62 @@ class BAstar(CPPSolver):
             z = current_position[2]
             pos = np.array([x, y, z])
             directions.append(self.pcd.find_k_nearest(pos, 1)[0])
+
         east, northeast, north, northwest, west, southwest, south, southeast = directions
 
         return [east, north, south, northeast, northwest, southeast, southwest, west]
-        #return [west, northwest, southwest, north, south, northeast, southeast, east]
+
+    def is_in_list(self, list, array):
+        """Checks if an array is in a list by checking if it has 
+        values close to it. 
+
+        Args:
+            list: list with arrays
+            array: array to check
+
+        Returns:
+            True if it finds the array in the list 
+        """
+        diffs =  np.linalg.norm(list - array, axis=1)
+        return np.any(diffs < 0.05)
 
     def has_been_visited(self, point, path=None):
+        """Checks if a point has been visited. Looks if the distance to a point in the
+        path is smaller than SPIRAL_VISITED_TRESHOLD.
+
+        Args:
+            point: A [x,y,z] np.array of the point that should be checked.
+            path (optional): Specific path. Defaults to None.
+
+        Returns:
+            True if the point has been classified as visited
+        """
         if path is None:
             path = self.path
-        #self.print("path: " + str(self.path) )
-        #self.print("self.path - point" + str(self.path - point))
 
         distances = np.linalg.norm(path - point, axis=1)
-        #self.print("distances" + str(distances))
-        #self.print(np.any(distances <= STEP_SIZE) )
+
         return np.any(distances <= BASTAR_VISITED_TRESHOLD) 
 
     def is_blocked(self, from_point, to_point, path = None):
+        """Checks if a step is valid by looking if the end point has been visited 
+        or is an obstacle.
+
+        Args:
+            from_point: A [x,y,z] np.array of the start position
+            to_point: A [x,y,z] np.array of the end position
+            path (optional): Specific path. Defaults to None.
+
+        Returns:
+            True if the point has been classified as blocked
+        """
+
         if path is None:
             path = self.path
 
         if self.has_been_visited(to_point, path):
             return True
         
-
         if not self.motion_planner.is_valid_step(from_point, to_point):
             return True
         

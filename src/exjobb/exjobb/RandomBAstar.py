@@ -1,276 +1,144 @@
-from exjobb.Parameters import ROBOT_SIZE
-from exjobb.PointCloud import PointCloud
-from exjobb.Tree import Tree
+
 import numpy as np
-from collections import deque
-import networkx as nx
-import timeit
-from numba import njit
 import operator
-import copy 
-from exjobb.CPPSolver import CPPSolver, ROBOT_RADIUS, STEP_SIZE
-from exjobb.MotionPlanner import MotionPlanner
-from exjobb.RandomBAStarPath import PlanePath
-from exjobb.Spiral import Spiral
-from exjobb.RandomSpriralPath import SpiralPath
 import pickle
 
-CELL_STEP_SIZE = STEP_SIZE #1.25*ROBOT_RADIUS
-VISITED_TRESHOLD = 0.5*STEP_SIZE #0.8*ROBOT_RADIUS
-COVEREAGE_EFFICIENCY_GOAL = 0.95
-RRT_STEP_SIZE = 0.5*STEP_SIZE
-RRT_COVEREAGE_EFFICIENCY_GOAL = 0.3
-MAX_ITERATIONS = 30
-GOAL_CHECK_FREQUENCY = 50
-
-
-NUMBER_OF_ANGLES = 8
-
-POINTS_FOR_BACKTRACK = 50
+from exjobb.CPPSolver import CPPSolver
+from exjobb.RandomBAStarSegment import BAStarSegment
+from exjobb.RandomSpriralSegment import RandomSpiralSegment
+from exjobb.Parameters import RANDOM_BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL, RANDOM_BASTAR_MAX_ITERATIONS, RANDOM_BASTAR_NUMBER_OF_ANGLES, RANDOM_BASTAR_PART_I_COVERAGE, RANDOM_BASTAR_MIN_COVERAGE, RANDOM_BASTAR_MIN_SPIRAL_LENGTH
+from exjobb.PointCloud import PointCloud
+from exjobb.Tree import Tree
 
 DO_BASTAR_PLANNING = True
 
-TRAPPED = 0
-ADVANCED = 1
-REACHED = 2
-
-
 class RandomBAstar(CPPSolver):
-    def __init__(self, logger, motion_planner):
-            
-        self.logger = logger
-        super().__init__(logger, motion_planner)
-        self.name = "Random Sample"
+    ''' Solving the Coverage Path Planning Problem with Random Sample BAstar with Inward Spiral
+    '''
+    def __init__(self, print, motion_planner):
+        '''
+        Args:
+            print: function for printing messages
+            motion_planner: Motion Planner of the robot wihch also has the Point Cloud
+        '''
+        self.print = print
+        super().__init__(print, motion_planner)
+        self.name = "Random BAstar"
 
     def get_cpp_path(self, start_point):
+        """Generates a path that covers the area using BAstar Algorithm.
+
+        Args:
+            start_point: A [x,y,z] np.array of the start position of the robot
+
+        Returns:
+            Nx3 array with waypoints
+        """
+
         self.start_tracking()
-        coverage = 0
+        
         self.path = np.array([start_point])
-        self.points_to_mark = np.array([start_point])
         self.move_to(start_point)
 
         current_position = start_point
+        total_nbr_of_points = len(self.pcd.points)
+        iter = 0
 
         if DO_BASTAR_PLANNING:
-            BAstar_paths = []
-            total_points = len(self.pcd.points)
-            unvisited_points = np.arange(total_points)
+            Paths = []
+            uncovered_points = np.arange(total_nbr_of_points)
+            visited_waypoints = np.empty((0,3))
+            coverage_part_I = 0
+            #len(uncovered_points)/total_nbr_of_points > 0.05
+            while coverage_part_I < RANDOM_BASTAR_PART_I_COVERAGE and iter <= RANDOM_BASTAR_MAX_ITERATIONS:
+                iter += 1
+                
+                random_point = self.get_random_uncovered_point(visited_waypoints, iter)
+                BAstar_paths_from_point = []
 
-            i = -1
-            visited_waypoints_part_I = np.empty((0,3))
-
-            while len(unvisited_points)/total_points > 0.05 and i <= MAX_ITERATIONS:
-                i += 1
-                #self.print(i)
-                random_point = self.get_random_unvisited_point(i, visited_waypoints_part_I)
-                BAstar_paths_from_this_point = []
-
-                for angle_idx in range(NUMBER_OF_ANGLES):
-                    angle_offset = angle_idx * np.pi/NUMBER_OF_ANGLES
-                    new_BAstar_path = PlanePath(self.print, self.motion_planner, random_point, angle_offset, visited_waypoints_part_I)
-                    #new_BAstar_path = SpiralPath(self.print, self.motion_planner, random_point, visited_waypoints_part_I)
-                    BAstar_paths_from_this_point.append(new_BAstar_path)
-                    #self.print(str(i) + " - coverage for " + str(angle_idx) +": " + str(new_BAstar_path.coverage))
+                for angle_idx in range(RANDOM_BASTAR_NUMBER_OF_ANGLES):
+                    angle_offset = angle_idx * np.pi/RANDOM_BASTAR_NUMBER_OF_ANGLES
+                    new_BAstar_path = BAStarSegment(self.print, self.motion_planner, random_point, angle_offset, visited_waypoints)
+                    
+                    BAstar_paths_from_point.append(new_BAstar_path)
+                    
                     if new_BAstar_path.coverage == 0:
                         break
 
-                best_path = max(BAstar_paths_from_this_point, key=operator.attrgetter("coverage"))
-                self.print(str(i) + "- coverage: " + str(best_path.coverage))
+                best_BAstar_paths_from_point = max(BAstar_paths_from_point, key=operator.attrgetter("coverage"))
+                self.print(str(iter) + "- coverage: " + str(best_BAstar_paths_from_point.coverage))
                 
-                if best_path.coverage > 0.01:
-                    BAstar_paths.append( best_path )
-                    #self.print(best_path.path)
-                    #self.print(visited_waypoints)
-                    #visited_waypoints = np.append(visited_waypoints, best_path.path, axis=0)
-                    visited_waypoints_part_I = np.append(visited_waypoints_part_I, best_path.path, axis=0)
-                    unvisited_points = self.delete_values(unvisited_points, best_path.visited_points_idx)
-                    self.print("total coverage left: " + str(len(unvisited_points)/ total_points))
+                if best_BAstar_paths_from_point.coverage > RANDOM_BASTAR_MIN_COVERAGE:
+                    Paths.append( best_BAstar_paths_from_point )
+                    visited_waypoints = np.append(visited_waypoints, best_BAstar_paths_from_point.path, axis=0)
+                    uncovered_points = self.delete_values(uncovered_points, best_BAstar_paths_from_point.covered_points_idx)
+                    coverage_part_I = 1 - len(uncovered_points)/ total_nbr_of_points
+                    self.print("Coverage part I: " + str(coverage_part_I))
 
             
-            self.print("Number of found paths: " + str(len(BAstar_paths)))
-            #start_points, end_points, sorted_paths, visited_points_idx = self.get_greedy_sorted_paths(BAstar_paths)
-            start_points, end_points, sorted_paths, visited_points_idx = self.get_data_from_paths(BAstar_paths)
+            self.print("Number of found paths: " + str(len(Paths)))
 
-            visited_waypoints = np.empty((0,3))
-            for sorted_path in sorted_paths:
-                #self.print(sorted_path.path)
-                #self.print(visited_waypoints)
-                visited_waypoints = np.append(visited_waypoints, sorted_path.path, axis=0)
-                
+            covered_points_idx = self.get_data_from_paths(Paths)
 
-            with open('cached_visited_points_idx.dictionary', 'wb') as cached_pcd_file:
-                cache_data = {  "visited_points_idx": visited_points_idx, 
+            with open('cached_sample_based_bastar.dictionary', 'wb') as cached_pcd_file:
+                cache_data = {  "covered_points_idx": covered_points_idx, 
                                 "visited_waypoints": visited_waypoints,
-                                "start_points": start_points,
-                                "end_points": end_points,
-                                "sorted_paths": sorted_paths,
+                                "paths": Paths,
                                 }
                 pickle.dump(cache_data, cached_pcd_file)
         else:
-            with open('cached_visited_points_idx.dictionary', 'rb') as cached_pcd_file:
+            with open('cached_sample_based_bastar.dictionary', 'rb') as cached_pcd_file:
                 cache_data = pickle.load(cached_pcd_file)
-                visited_points_idx = np.unique(cache_data["visited_points_idx"])
+                covered_points_idx = np.unique(cache_data["covered_points_idx"])
                 visited_waypoints = cache_data["visited_waypoints"]
-                start_points = cache_data["start_points"]
-                end_points = cache_data["end_points"]
-                sorted_paths = cache_data["sorted_paths"]
+                Paths = cache_data["paths"]
         
-        self.pcd.visited_points_idx = visited_points_idx
+        self.pcd.covered_points_idx = covered_points_idx
+        coverage_part_II = len(covered_points_idx)/ total_nbr_of_points
+        
+        self.print("Coverage part II: " + str(coverage_part_II))
+        self.print("visited_waypoints: " + str(visited_waypoints))
 
-        #random_points = self.get_random_sampled_points_simple(visited_points_idx)
-        #self.print(len(random_points))
-        
-        before  = len(visited_waypoints)
-        spiral_paths = []
-        i = 3
-        self.print(len(visited_points_idx) / len(self.pcd.points))
-        while len(visited_points_idx) < 0.98*len(self.pcd.points): 
-            i += 33
-            random_unvisited_point = self.get_random_unvisited_point(i, visited_waypoints)
-            spiral_path = SpiralPath(self.print, self.motion_planner, random_unvisited_point, visited_waypoints)
+        while coverage_part_II < COVEREAGE_EFFICIENCY_GOAL: 
+            iter += 1
+            random_uncovered_point = self.get_random_uncovered_point(visited_waypoints, iter)
+            spiral_path = RandomSpiralSegment(self.print, self.motion_planner, random_uncovered_point, visited_waypoints)
             
-            if len(spiral_path.path) < 3:
+            if len(spiral_path.path) < RANDOM_BASTAR_MIN_SPIRAL_LENGTH:
                 continue
-            sorted_paths.append(spiral_path)    
-            start_points.append(spiral_path.start)
-            end_points.append(spiral_path.end)
+
+            Paths.append(spiral_path)    
             visited_waypoints = np.append(visited_waypoints, spiral_path.path, axis=0)
-            visited_points_idx = np.unique(np.append(visited_points_idx, spiral_path.visited_points_idx))
-            self.print(len(visited_points_idx) / len(self.pcd.points))
-        
+            covered_points_idx = np.unique(np.append(covered_points_idx, spiral_path.covered_points_idx))
+            self.print(len(covered_points_idx) / total_nbr_of_points)
+            coverage_part_II = len(covered_points_idx) / total_nbr_of_points
 
+        paths_to_visit_in_order  = self.traveling_salesman(Paths)
 
+        self.follow_given_path(current_position, paths_to_visit_in_order)
 
-        #for spiral in spiral_paths:
-        #    self.path = np.append(self.path, spiral.path, axis=0)
-        #spiral_cpp = Spiral(self.logger, self.motion_planner)
-        
-        #spiral_cpp.path = visited_waypoints
-        
-        #self.path = spiral_cpp.get_cpp_path(random_unvisited_point, visited_waypoints) 
-        #self.path = self.path[before:]
-
-        
-
-
-        points_to_visit_in_order = self.traveling_salesman(sorted_paths)
-
-        self.print("points_to_visit_in_order " + str(len(points_to_visit_in_order)))
-        self.print("sorted_paths " + str(len(sorted_paths)))
-        self.print("end_points " + str(len(end_points)))
-        self.print("start_points " + str(len(start_points)))
-
-        self.follow_given_path(current_position, points_to_visit_in_order, start_points, end_points, sorted_paths)
-        #self.path = points_to_visit_in_order
-        #self.follow_path(self.path)
         self.print_stats(self.path)
 
         return self.path
 
     
 
-    def get_random_sampled_points_simple(self, visited_points_idx):
-        pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
-        pcd.visited_points_idx = visited_points_idx
-        waypoints = np.empty((0,3))
-        uncovered_points_idx = self.delete_values(np.arange(len(pcd.points)), visited_points_idx)
-        nbr_of_points_to_cover = len(uncovered_points_idx)
-        covered_points_idx = np.array([])
-        while len(covered_points_idx) < 0.90*nbr_of_points_to_cover:
-            if len(uncovered_points_idx):
-                random_idx = np.random.choice(len(uncovered_points_idx), 1, replace=False)[0]
-            else:
-                break
-            
-            random_point =  pcd.points[uncovered_points_idx[random_idx]]
-            points_nearby = pcd.points_idx_in_radius(random_point, ROBOT_RADIUS)
-
-            nbr_of_points_nearby = 30
-
-            if len(points_nearby) < nbr_of_points_nearby:
-                random_points_nearby = points_nearby
-            else:
-                random_points_nearby = points_nearby[np.random.choice(len(points_nearby), nbr_of_points_nearby, replace=False)]
-            #
-            #self.print("random_points_nearby" + str(random_points_nearby))
-            #self.print("unvisited points_nearby: " + str(len(np.intersect1d(points_nearby, uncovered_points_idx))))
-            covered_points = []
-            for point_idx in random_points_nearby:
-                #self.print("point_idx: " + str(point_idx))
-                point = pcd.points[point_idx]
-                #self.print("point: " + str(point))
-                points_nearby = pcd.points_idx_in_radius(point, ROBOT_RADIUS)
-                #self.print("points_nearby: " + str(len(points_nearby)))
-                unvisited_points = np.intersect1d(points_nearby, uncovered_points_idx)
-                #self.print("unvisited_points: " + str(len(unvisited_points)))
-                covered_points.append(len(unvisited_points))
-                #covered_points_idx_list.append(unvisited_points)
-                #self.print("covered_points: " + str(covered_points))
-                #covered_points.append(len(points_nearby))
-
-            best_point_idx = random_points_nearby[np.argmax(covered_points)]
-            #self.print("best_point_idx: " + str(best_point_idx))
-            #self.print("best: " + str(covered_points[np.argmax(covered_points)]))
-            new_waypoint = pcd.points[best_point_idx]
-            #self.print("new_waypoint: " + str(new_waypoint))
-            waypoints = np.append(waypoints, [new_waypoint], axis=0)
-            points_nearby = pcd.points_idx_in_radius(new_waypoint, ROBOT_RADIUS)
-            unvisited_points = np.intersect1d(points_nearby, uncovered_points_idx)
-            covered_points_idx = np.unique(np.append(covered_points_idx, unvisited_points))
-            #self.print("covered_points_idx: " + str(len(covered_points_idx)))
-            uncovered_points_idx = self.delete_values(uncovered_points_idx, covered_points_idx)
-            #self.print("uncovered_points_idx: " + str(len(uncovered_points_idx)))
-            self.print(len(covered_points_idx)  / nbr_of_points_to_cover)
-        
-        full_visited_points_idx = np.unique(np.append(visited_points_idx, covered_points_idx)) 
-        self.print(len(full_visited_points_idx)  / len(pcd.points))
-        return waypoints
-
-    def get_random_sampled_points(self, visited_points_idx):
-        pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
-        pcd.visited_points_idx = visited_points_idx
-
-        waypoints = np.empty((0,3))
-        k = 1
-        
-        uncovered_points_idx = self.delete_values(np.arange(len(pcd.points)), visited_points_idx)
-        nbr_of_points_to_k_cover = len(uncovered_points_idx)
-        covered_points_idx = np.array([])
-        k_covered_points_idx = np.array([])
-        
-        while len(k_covered_points_idx) < nbr_of_points_to_k_cover:
-            #self.print(len(k_covered_points_idx) / len(self.pcd.points))
-            if len(uncovered_points_idx):
-                random_idx = np.random.choice(len(uncovered_points_idx), 1, replace=False)[0]
-                new_waypoint = pcd.points[uncovered_points_idx[random_idx]]
-            else:
-                #self.print("ALL POINTS COVERED")
-                random_idx = np.random.choice(len(covered_points_idx), 1, replace=False)[0]
-                new_waypoint = pcd.points[covered_points_idx[random_idx]]
-
-
-            
-
-            waypoints = np.append(waypoints, [new_waypoint], axis=0)
-            covered_points_idx = np.append(covered_points_idx, pcd.points_idx_in_radius(new_waypoint, ROBOT_RADIUS))
-            #self.print("k_covered_points" + str(k_covered_points))
-            #self.print("uncovered_points_idx" + str(uncovered_points_idx))
-            #self.print("new_waypoint" + str(new_waypoint))
-            #self.print("waypoints" + str(waypoints))
-            #self.print("all_covered_points_idx" + str(all_covered_points_idx))
-            uncovered_points_idx = self.delete_values(uncovered_points_idx, covered_points_idx)
-            k_covered_points_idx = np.unique(np.append(k_covered_points_idx, self.get_k_covered_points_idx(covered_points_idx, k)))
-            covered_points_idx = self.delete_values_not_unique(covered_points_idx, k_covered_points_idx)
-            self.print(len(k_covered_points_idx) / nbr_of_points_to_k_cover)
-        
-        full_visited_points_idx = np.unique(np.append(visited_points_idx, k_covered_points_idx)) 
-        self.print(len(full_visited_points_idx)  / len(pcd.points))
-        return waypoints
+    
 
 
     def traveling_salesman(self, paths):
-        tree = Tree("BAstar paths")
-        
+        """Using Traveling Salesman Algorithm to order the path in an order
+        that would minimise the total length of the path.
+
+        Args:
+            paths: List of paths of types RandomSpiralSegment and BAStarSegment
+
+        Returns:
+            Ordered list of paths
+        """
+        tree = Tree("BAstar paths")      
+        start_nodes_idx = []  
+        end_nodes_idx = []  
         
         def get_weight(from_idx, to_idx):
             from_point = tree.nodes[from_idx]
@@ -281,136 +149,102 @@ class RandomBAstar(CPPSolver):
             start_point = path.start
             end_point = path.end
             start_point_node_idx = tree.add_node(start_point)
+            start_nodes_idx.append(start_point_node_idx)
+
             for node_idx, point in enumerate(tree.nodes[:-1]):
                 tree.add_edge(start_point_node_idx, node_idx, get_weight(start_point_node_idx, node_idx))
             
             end_point_node_idx = tree.add_node(end_point)
+            end_nodes_idx.append(end_point_node_idx)
             for node_idx, point in enumerate(tree.nodes[:-2]):
                 tree.add_edge(end_point_node_idx, node_idx, get_weight(end_point_node_idx, node_idx))
 
             tree.add_edge(start_point_node_idx, end_point_node_idx, 0)
 
-        #for point in random_points:
-        #    new_point_node_idx = tree.add_node(point)
-        #    for node_idx, point in enumerate(tree.nodes[:-1]):
-        #        tree.add_edge(new_point_node_idx, node_idx, get_weight(new_point_node_idx, node_idx))
-
         traveling_Salesman_path =  tree.get_traveling_salesman_path()
         self.print(traveling_Salesman_path)
-        return [tree.nodes[i] for i in traveling_Salesman_path] 
+
+        paths_in_order = []
+        current_position = np.array([0,0,0])
+
+        for node_idx in traveling_Salesman_path:
+
+            if np.array_equal(tree.nodes[node_idx], current_position):
+                continue
+
+            if node_idx in start_nodes_idx:
+                path_idx = start_nodes_idx.index(node_idx)
+                current_path = paths[path_idx]
+                paths_in_order.append(current_path)
+            elif node_idx in end_nodes_idx:
+                path_idx = end_nodes_idx.index(node_idx)
+                current_path = paths[path_idx]
+                current_path.path = np.flip(current_path.path, 0)
+                current_path.end = current_path.start
+                current_path.start = tree.nodes[node_idx]
+                paths_in_order.append(current_path)
+            else:
+                self.print("Not start or end point..")
+
+            current_position = current_path.end
+
+        return paths_in_order
+
+        
+
     def get_data_from_paths(self, paths):
-        sorted_paths = []
-        start_points = []
-        end_points = []
+        """Splitting up data from the generating paths in the list for saving and
+        future calculations
+
+        Args:
+            paths: Generated Paths of class RandomBAstarSegment
+
+        Returns:
+            List of start points, end points and points indices that has been covered
+        """
         pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
 
         for path in paths:
-            sorted_paths.append(path)
-            start_points.append(path.start)
-            end_points.append(path.end)
-            pcd.visit_path(path.path, ROBOT_RADIUS)
+            pcd.covered_points_idx = np.unique(np.append(pcd.covered_points_idx, path.covered_points_idx, axis=0))
 
-        return start_points, end_points, sorted_paths, np.unique(pcd.visited_points_idx)
+        return pcd.covered_points_idx
 
-    def get_greedy_sorted_paths(self, BAstar_paths):
-        sorted_paths = []
-        start_points = []
-        end_points = []
-        pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
-        prev_coverage = 0
-        BAstar_paths_unvisited_points_length = [0]*len(BAstar_paths)
-        uncovered_paths = [i for i in BAstar_paths]
-        visited_points = np.empty((0,3))
-
-        while len(uncovered_paths):
-            for idx, path in enumerate(BAstar_paths):
-                BAstar_paths_unvisited_points_length[idx] = len(self.delete_values( path.visited_points_idx, pcd.visited_points_idx ))
-            
-            max_covering_path_idx = np.argmax(BAstar_paths_unvisited_points_length)
-            max_path = BAstar_paths[max_covering_path_idx]
-            
-            if max_path in uncovered_paths:
-                uncovered_paths.remove(max_path)
-            else:
-                break
-            
-            current_position = max_path.start
-            pruned_path = np.empty((0,3))
-            for point in max_path.path:
-                #if self.is_blocked(current_position, point, visited_points):
-                #    continue
-
-                pruned_path = np.append(pruned_path, [point], axis=0)
-                current_position = point
-
-            if len(pruned_path) == 0:
-                continue
-
-            max_path.path = pruned_path
-            max_path.start = pruned_path[0]
-            max_path.end = pruned_path[-1]
-            visited_points = np.append(visited_points, pruned_path, axis=0)
-
-
-            
-            pcd.visit_path(pruned_path, ROBOT_RADIUS)
-            self.points_to_mark = np.append(self.points_to_mark, [max_path.start], axis=0)
-
-            sorted_paths.append(max_path)
-            start_points.append(max_path.start)
-            end_points.append(max_path.end)
-
-            coverage = pcd.get_coverage_efficiency()
-            self.print("coverage" + str(coverage))
-            if coverage - prev_coverage < 0.005:
-            #if coverage - prev_coverage == 0:
-                break
-            prev_coverage = coverage
-            #self.path = self.points_to_mark
-
-        return start_points, end_points, sorted_paths, pcd.visited_points_idx
-
-    def follow_given_path(self, start_position, points_to_visit_in_order, start_points, end_points, sorted_paths):
+    def follow_given_path(self, start_position, paths_to_visit_in_order):
         current_position = start_position
-        for idx, point in enumerate(points_to_visit_in_order):
 
-            if np.array_equal(point, current_position):
-                continue
+        def get_length_of_path(path):
+            ''' Calculates length of the path in meters
+            '''
+            return np.linalg.norm( path[0, 0:2] - path[-1, 0:2] ), np.linalg.norm( path[0, 2] - path[-1, 2] )
 
-            self.print("Moving to point " + str(idx) + " out of " + str(len(points_to_visit_in_order)))
-            path_to_next_starting_point = self.motion_planner.Astar(current_position, point)
-            self.follow_path(path_to_next_starting_point)
-
-            #self.print("point" + str(point))
-            start_point_idx = False
-            end_point_idx = False
-
-            try:
-                start_point_idx = [np.array_equal(point, start_point) for start_point in start_points].index(True)
-            except ValueError:
-                start_point_idx = False
+        for idx, path in enumerate(paths_to_visit_in_order):
             
-                try:
-                    end_point_idx = [np.array_equal(point, end_point) for end_point in end_points].index(True)
-                except ValueError:
-                    end_point_idx = False
+            self.print("Moving to start of path " + str(idx+1) + " out of " + str(len(paths_to_visit_in_order)))
+            path_to_next_starting_point = self.motion_planner.Astar(current_position, path.start)
+            self.follow_path(path_to_next_starting_point)
+            self.path = np.append(self.path, path.path, axis=0)
+            self.pcd.covered_points_idx = np.unique(np.append(self.pcd.covered_points_idx, path.covered_points_idx, axis=0))
+            current_position = self.path[-1]
 
-            if start_point_idx is not False:
-                self.follow_path(sorted_paths[start_point_idx].path)
-                current_position = sorted_paths[start_point_idx].end
-            elif end_point_idx is not False:
-                self.follow_path(np.flip(sorted_paths[end_point_idx].path, 0))
-                current_position = sorted_paths[end_point_idx].start
-            else:
-                self.move_to(point)
-                current_position = point
+            
 
+    def get_random_uncovered_point(self, visited_waypoints , iter = False ):
+        """Returns a random uncovered point
 
-    def get_random_unvisited_point(self, i, visited_waypoints):
+        Args:
+            visited_waypoints: Nx3 array with waypoints that has been visited
+            iter (bool, optional): Integer for random seed. Defaults to False.
+
+        Returns:
+            A [x,y,z] position of an unvisited point.
+        """
         all_points_idx = np.arange(len(self.pcd.points))
-        np.random.seed(20*i)
+        if iter is False:
+            np.random.seed(20*iter)
+
         random_idx = np.random.choice(len(all_points_idx), 1, replace=False)[0]
         random_point = self.pcd.points[all_points_idx[random_idx]]
+
         while self.has_been_visited(random_point, visited_waypoints) or not self.accessible(random_point, visited_waypoints):
             random_idx = np.random.choice(len(all_points_idx), 1, replace=False)[0]
             random_point = self.pcd.points[all_points_idx[random_idx]]
@@ -418,6 +252,14 @@ class RandomBAstar(CPPSolver):
         return random_point
 
     def accessible(self, point, visited_waypoints):
+        ''' Checks if a point is accessible by trying to make a path from the point
+        to the closest visited point.
+        Args:
+            point:  A [x,y,z] np.array of the point position
+            visited_waypoints: A Nx3 NumPy array with positions that has been visited.
+        Returns:
+            True if the point is accessible.
+        '''
         if len(visited_waypoints) == 0:
             return True
         closest_point = visited_waypoints[np.argmin(np.linalg.norm(visited_waypoints - point, axis=1))]
@@ -426,37 +268,29 @@ class RandomBAstar(CPPSolver):
 
 
     def delete_values(self, array, values):
+        ''' Removes specific values from an array with unique values
+        Args:
+            array: NumPy array with unique values to remove values from
+            values: NumPy array with values that should be removed.
+        '''
         return array[ np.isin(array, values, assume_unique=True, invert=True) ]
 
     def delete_values_not_unique(self, array, values):
+        ''' Removes specific values from an array
+        Args:
+            array: NumPy array to remove values from
+            values: NumPy array with values that should be removed.
+        '''
         return array[ np.isin(array, values, invert=True) ]
 
     def has_been_visited(self, point, path=None):
+        ''' Removes specific values from an array
+        Args:
+            array: NumPy array to remove values from
+            values: NumPy array with values that should be removed.
+        '''
         if path is None:
             path = self.path
+
         distances = np.linalg.norm(path - point, axis=1)
-        return np.any(distances <= VISITED_TRESHOLD) 
-
-    def is_blocked(self, from_point, to_point, path = None):
-        if path is None:
-            path = self.path
-
-        if self.has_been_visited(to_point, path):
-            return True
-        
-
-        if not self.motion_planner.is_valid_step(from_point, to_point):
-            return True
-        
-        return False
-
-
-    def get_k_covered_points_idx(self, covered_points_idx, k):
-        points_idx, counts = np.unique(covered_points_idx, return_counts=True)
-        k_covered_points = points_idx[counts >= k]
-        return k_covered_points
-
-
-    def get_points_to_mark(self):
-        #return self.backtrack_list
-        return self.points_to_mark
+        return np.any(distances <= RANDOM_BASTAR_VISITED_TRESHOLD) 

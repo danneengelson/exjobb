@@ -13,6 +13,7 @@ from exjobb.MotionPlanner import MotionPlanner
 from exjobb.RobotTraversability import RobotTraversability
 from exjobb.NaiveRRTCPPAStar import NaiveRRTCPPAstar
 from exjobb.BAstar import BAstar
+from exjobb.BAstarVariant import BAstarVariant
 from exjobb.Spiral import Spiral
 from exjobb.SpiralVariant import SpiralVariant
 from exjobb.RandomBAstar import RandomBAstar
@@ -93,7 +94,7 @@ class MainNode(Node):
                 self.path = []
 
         if CPP_TEST:
-            self.cpp = BAstar(self.print, motion_planner)
+            self.cpp = RandomBAstar(self.print, motion_planner)
             self.path = self.cpp.get_cpp_path(start_pos)            
             self.points_to_mark = self.cpp.points_to_mark
 
