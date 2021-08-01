@@ -6,7 +6,7 @@ import timeit
 from exjobb.FloorSegmentation import FloorSegmentation
 from exjobb.ElevationDetector import ElevationDetector
 from exjobb.TraversabilityDetector import TraversabilityDetector
-from exjobb.Parameters import CELL_SIZE, ROBOT_STEP_SIZE
+from exjobb.Parameters import CELL_SIZE, MAX_STEP_HEIGHT
 import pickle
 
 VISUALIZE = False
@@ -48,7 +48,7 @@ class TerrainAssessment():
 
         segmentized_floors = self.floor_segmentation.get_segmentized_floors(self.pcd)
         
-        for floor in segmentized_floors:
+        for floor in segmentized_floors[0:2]:
             self.print("="*20)
             self.print(floor.name)                
             self.elevation_detector.find_elevation(self.pcd, floor)
@@ -142,8 +142,8 @@ class TerrainAssessment():
                 
                 lowest_z = np.min(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2])
                 z = cell.elevation
-                if z - lowest_z > 2*ROBOT_STEP_SIZE:
-                    points_below_z = np.where(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2] < lowest_z + ROBOT_STEP_SIZE  )
+                if z - lowest_z > 2*MAX_STEP_HEIGHT:
+                    points_below_z = np.where(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2] < lowest_z + MAX_STEP_HEIGHT  )
                 else:
                     points_below_z = np.where(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2] < z  )  
 
@@ -210,13 +210,13 @@ class TerrainAssessment():
 
     def get_ground_points(self, cell):
         lowest_z = np.min(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2])
-        points_below_z = np.where(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2] <= lowest_z + 2*ROBOT_STEP_SIZE  )[0]
+        points_below_z = np.where(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2] <= lowest_z + 2*MAX_STEP_HEIGHT  )[0]
         idx_in_points_idx = np.array(points_below_z, int)
         return np.take(cell.points_idx_in_full_pcd, idx_in_points_idx)
 
         z = cell.elevation
-        if z - lowest_z > 2*ROBOT_STEP_SIZE:
-            points_below_z = np.where(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2] < lowest_z + ROBOT_STEP_SIZE  )
+        if z - lowest_z > 2*MAX_STEP_HEIGHT:
+            points_below_z = np.where(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2] < lowest_z + MAX_STEP_HEIGHT  )
         else:
             points_below_z = np.where(  np.asarray(self.pcd.points)[cell.points_idx_in_full_pcd][:,2] < z  )  
             

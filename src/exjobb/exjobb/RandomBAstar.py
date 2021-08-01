@@ -78,7 +78,7 @@ class RandomBAstar(CPPSolver):
             
             self.print("Number of found paths: " + str(len(Paths)))
 
-            covered_points_idx = self.get_data_from_paths(Paths)
+            covered_points_idx = self.get_covered_points_idx_from_paths(Paths)
 
             with open('cached_sample_based_bastar.dictionary', 'wb') as cached_pcd_file:
                 cache_data = {  "covered_points_idx": covered_points_idx, 
@@ -115,7 +115,7 @@ class RandomBAstar(CPPSolver):
 
         paths_to_visit_in_order  = self.traveling_salesman(Paths)
 
-        self.follow_given_path(current_position, paths_to_visit_in_order)
+        self.follow_paths(current_position, paths_to_visit_in_order)
 
         self.print_stats(self.path)
 
@@ -192,15 +192,14 @@ class RandomBAstar(CPPSolver):
 
         
 
-    def get_data_from_paths(self, paths):
-        """Splitting up data from the generating paths in the list for saving and
-        future calculations
+    def get_covered_points_idx_from_paths(self, paths):
+        """Finds indices of all covered points by the given paths
 
         Args:
             paths: Generated Paths of class RandomBAstarSegment
 
         Returns:
-            List of start points, end points and points indices that has been covered
+            List of points indices that has been covered
         """
         pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
 
@@ -209,13 +208,15 @@ class RandomBAstar(CPPSolver):
 
         return pcd.covered_points_idx
 
-    def follow_given_path(self, start_position, paths_to_visit_in_order):
-        current_position = start_position
+    def follow_paths(self, start_position, paths_to_visit_in_order):
+        """Connects all paths with Astar and make the robot walk through the paths.
 
-        def get_length_of_path(path):
-            ''' Calculates length of the path in meters
-            '''
-            return np.linalg.norm( path[0, 0:2] - path[-1, 0:2] ), np.linalg.norm( path[0, 2] - path[-1, 2] )
+        Args:
+            start_position: A [x,y,z] np.array of the start position of the robot
+            paths_to_visit_in_order:    Ordered list of paths of types RandomSpiralSegment 
+                                        and BAStarSegment
+        """
+        current_position = start_position
 
         for idx, path in enumerate(paths_to_visit_in_order):
             
@@ -225,8 +226,6 @@ class RandomBAstar(CPPSolver):
             self.path = np.append(self.path, path.path, axis=0)
             self.pcd.covered_points_idx = np.unique(np.append(self.pcd.covered_points_idx, path.covered_points_idx, axis=0))
             current_position = self.path[-1]
-
-            
 
     def get_random_uncovered_point(self, visited_waypoints , iter = False ):
         """Returns a random uncovered point

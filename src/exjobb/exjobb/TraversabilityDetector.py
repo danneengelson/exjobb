@@ -2,8 +2,8 @@
 import numpy as np
 import timeit
 import operator
-
-from exjobb.Parameters import ROBOT_STEP_SIZE, GROUND_OFFSET
+from exjobb.PointCloud import PointCloud
+from exjobb.Parameters import MAX_STEP_HEIGHT, GROUND_OFFSET, ROBOT_SIZE, CELL_SIZE
 
 
 class TraversabilityDetector:
@@ -29,8 +29,14 @@ class TraversabilityDetector:
         accessible_cells_poses = self.get_accessible_cells_poses(ground_cells_poses, floor)
 
 
+        border_untraversable_poses = []
+
+        pcd = PointCloud(self.print, points=np.asarray(full_pcd.points))
         coverable_points_idx = np.array([], int)
-        for pos in accessible_cells_poses:
+        collision_risk_points_idx = np.array([], int)
+
+        for i, pos in enumerate(accessible_cells_poses):
+            self.print("Working on " + str(i) + " out of " + str(len(accessible_cells_poses)) + str("\r")) 
             points_idx_in_cell = floor.cells_grid[pos].points_idx_in_full_pcd 
             #####
             elevation = floor.cells_grid[pos].elevation 
@@ -38,8 +44,61 @@ class TraversabilityDetector:
             points_in_cell = np.asarray(full_pcd.points)[points_idx_in_cell]
             new_coverable_points_idx = self.get_coverable_points_idx_in_cell(points_in_cell, points_idx_in_cell, elevation)
             coverable_points_idx = np.append(coverable_points_idx, new_coverable_points_idx )
+
+            ### NEW PART:
+            for neighbour in self.get_neighbours_poses(pos):
+                
+                if neighbour in accessible_cells_poses:
+                    continue
+                border_untraversable_poses.append({
+                    "pos": neighbour,
+                    "z": elevation
+                })
+
+        self.print("border_untraversable_poses" + str(len(border_untraversable_poses)))
+        self.print("border_untraversable_poses" + str(border_untraversable_poses))
+        traversable_points = coverable_points_idx
+
+        for i, untraversable_cell in enumerate(border_untraversable_poses):
+            self.print("Working on border pos " + str(i) + " out of " + str(len(border_untraversable_poses))) 
+            if True:#not floor.is_valid_cell(pos):
+                #z_values = np.arange(floor.min_z, floor.max_z, step=ROBOT_SIZE)
+                #z_values = pos["z"]
+                xy_position = floor.pos_to_position(untraversable_cell["pos"])
+                obstacle_points_idx_queue = np.empty((0,3))
+                #for z in z_values:
+                fake_position = [xy_position[0], xy_position[1], untraversable_cell["z"]]
+                #closest_point = pcd.find_k_nearest(fake_position, 1)[0]
+                collision_risk_points = pcd.points_idx_in_radius(fake_position, np.sqrt(1/2)*CELL_SIZE + 0.5*ROBOT_SIZE)
+                traversable_points = self.delete_values(traversable_points, collision_risk_points)
+
+                continue
+
+            obstacle_points_idx_queue = np.asarray(floor.cells_grid[pos].points_idx_in_full_pcd).astype(int)
+            while len(obstacle_points_idx_queue):
+                #self.print(len(obstacle_points_idx_queue))
+                obstacle_point_idx, obstacle_points_idx_queue = obstacle_points_idx_queue[0], obstacle_points_idx_queue[1:]
+                point = pcd.points[obstacle_point_idx]
+                collision_risk_points = pcd.points_idx_in_radius(point, 0.5*ROBOT_SIZE)
+                #self.print(traversable_points)
+                #self.print(collision_risk_points)
+                traversable_points = self.delete_values(traversable_points, collision_risk_points)
+                points_nearby = pcd.points_idx_in_radius(point, 0.25)
+                #obstacle_points_idx_queue = np.asarray(obstacle_points_idx_queue).astype(int)
+                #self.print("points_nearby" + str(points_nearby))
+                #self.print(obstacle_points_idx_queue)
+                obstacle_points_idx_queue = self.delete_values(obstacle_points_idx_queue, points_nearby)
+
+
+        #    position = floor.pos_to_position(pos) 
+        #    collision_risk_radius = CELL_SIZE/2 + ROBOT_SIZE/2
+        #    collision_risk_points_idx = np.append(collision_risk_points_idx, pcd.points_idx_in_radius(position, collision_risk_radius))
         
-        coverable_points_idx = np.unique(coverable_points_idx)
+        
+        #coverable_points_idx = np.unique(coverable_points_idx)
+        #collision_risk_points_idx = np.unique(collision_risk_points_idx)
+        #coverable_points_idx = self.delete_values(coverable_points_idx, collision_risk_points_idx)
+        coverable_points_idx = traversable_points
         self.print_result(start, coverable_points_idx, accessible_cells_poses)
 
         return coverable_points_idx
@@ -116,7 +175,7 @@ class TraversabilityDetector:
         ground_pos_elevation = floor.cells_grid[from_pos].elevation
         neigbour_pos_elevation = floor.cells_grid[to_pos].elevation
 
-        return abs(neigbour_pos_elevation - ground_pos_elevation) <= ROBOT_STEP_SIZE
+        return abs(neigbour_pos_elevation - ground_pos_elevation) <= MAX_STEP_HEIGHT
 
     def get_ground_cells_poses(self, floor):
         ''' Finds all ground level cells in the floor.
@@ -144,10 +203,18 @@ class TraversabilityDetector:
             points_idx: indicies of these points in the full point cloud.        
         '''
         z_values = points[:,2]        
-        coverable = np.where(  abs(z_values - elevation) < ROBOT_STEP_SIZE  )[0]
+        coverable = np.where(  abs(z_values - elevation) < MAX_STEP_HEIGHT  )[0]
         coverable = np.array(coverable, int)
 
         return np.take(points_idx, coverable)
+
+    def delete_values(self, array, values):
+        ''' Removes specific values from an array
+        Args:
+            array: NumPy array to remove values from
+            values: NumPy array with values that should be removed.
+        '''
+        return array[ np.isin(array, values, assume_unique=True, invert=True) ]
  
     def print_result(self, start, coverable_points, coverable_cells):
         ''' Prints result data of the floor segmentation.

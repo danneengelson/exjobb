@@ -2,7 +2,7 @@ import numpy as np
 import open3d as o3d
 import timeit
 
-from exjobb.Parameters import CELL_SIZE, Z_RESOLUTION, ROBOT_HEIGHT, FLOOR_THICKNESS, MIN_POINTS_IN_CELL
+from exjobb.Parameters import CELL_SIZE, Z_RESOLUTION, MIN_FLOOR_HEIGHT, FLOOR_THICKNESS, MIN_POINTS_IN_CELL
 
 class ElevationDetector:
     ''' Class for creating a Discrete Elevation Model of the Point Cloud.
@@ -67,7 +67,7 @@ class ElevationDetector:
 
     def get_elevation_of_cell(self, z_values):    
         ''' Starting from the lowest point, it looks for an empty space in the cell
-        with a height of at lest the ROBOT_HEIGHT, where there are no points.
+        with a height of at least the MIN_FLOOR_HEIGHT, where there are no points.
         Args:
             z_values: List of the z-values of all points in the cell
         '''
@@ -77,7 +77,7 @@ class ElevationDetector:
         for idx, z in enumerate(sorted_z_values[1:]):
             prev_z = sorted_z_values[idx]
             
-            if abs(z - prev_z) > ROBOT_HEIGHT:
+            if abs(z - prev_z) > MIN_FLOOR_HEIGHT:
                 break
                 
         return prev_z

@@ -15,26 +15,24 @@ from exjobb.NaiveRRTCPPAStar import NaiveRRTCPPAstar
 from exjobb.BAstar import BAstar
 from exjobb.BAstarVariant import BAstarVariant
 from exjobb.Spiral import Spiral
-from exjobb.SpiralVariant import SpiralVariant
 from exjobb.RandomBAstar import RandomBAstar
 
-from exjobb.Parameters import ROBOT_SIZE, ROBOT_STEP_SIZE
 from exjobb.ROSMessage import RED, GREEN, BLUE
 import exjobb.ROSMessage as ROSMessage
 
-DO_TERRAIN_ASSESSMENT = False
+DO_TERRAIN_ASSESSMENT = True
 DO_ROBOT_TRAVERSABILITY = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
 PUBLISH_MARKERS = False
-PUBLISH_PATH = True
+PUBLISH_PATH = False
 PUBLISH_PATH_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
-PUBLISH_VISITED_GROUND_PCD = True
+PUBLISH_VISITED_GROUND_PCD = False
 PUBLISH_TRAVERSABLE_PCD = True
 
 MOTION_PLANNER_TEST = False
-CPP_TEST = True
+CPP_TEST = False
 COLLECT_RESULT = False
 
 class MainNode(Node):
@@ -157,7 +155,10 @@ class MainNode(Node):
             coverable_points = self.point_cloud.points[coverable_points_idx]
 
             with open('cached_coverable_points.dictionary', 'wb') as cached_pcd_file:
-                cache_data = {"coverable_points": coverable_points, "coverable_points_idx": coverable_points_idx}
+                cache_data = {
+                    "coverable_points": coverable_points, 
+                    "coverable_points_idx": coverable_points_idx
+                    }
                 pickle.dump(cache_data, cached_pcd_file)
 
         else:

@@ -194,7 +194,7 @@ class BAstar(CPPSolver):
 
         east, northeast, north, northwest, west, southwest, south, southeast = directions
 
-        return [east, north, south, northeast, northwest, southeast, southwest, west]
+        return [north, south, northeast, northwest, east, southeast, southwest, west]
 
     def is_in_list(self, list, array):
         """Checks if an array is in a list by checking if it has 

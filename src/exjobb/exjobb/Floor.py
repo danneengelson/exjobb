@@ -85,3 +85,8 @@ class Floor:
             return True
         except:
             return False
+
+    def pos_to_position(self, pos):
+        x = self.min_x + pos[0]*CELL_SIZE + CELL_SIZE/2
+        y = self.min_y + pos[1]*CELL_SIZE + CELL_SIZE/2
+        return np.array([x,y])
