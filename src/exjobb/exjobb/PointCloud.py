@@ -82,6 +82,14 @@ class PointCloud:
             self.visit_path_to_position(pos, prev_pos)
             prev_pos = pos
 
+    def unvisit_position(self, position):
+        """ Mark points around position as uncovered
+        Args:
+            position: The position to unvisit
+        """
+        [k, idx, _] = self.kdtree.search_radius_vector_3d(position, ROBOT_RADIUS) 
+        self.covered_points_idx = self.covered_points_idx[ np.isin(self.covered_points_idx, idx, assume_unique=True, invert=True) ]
+
     #SKA EVENTUELLT BORT
     def get_visiting_rate_in_area(self, point, radius):
         [k, idx, _] = self.kdtree.search_radius_vector_3d(point, radius)
@@ -114,6 +122,9 @@ class PointCloud:
         Returns:
             Coverage count per point on average
         """
+        if not len(path):
+            return 0
+
         covered_points_idx = np.array([]).astype(np.int32)
         prev_pos = path[0]
         for pos in path[1:]:

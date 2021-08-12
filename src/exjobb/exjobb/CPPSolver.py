@@ -22,15 +22,17 @@ class CPPSolver:
     ''' Abstract class of a Coverage Path Problem Solver
     '''
 
-    def __init__(self, print, motion_planner):
+    def __init__(self, print, motion_planner, coverable_pcd):
         '''
         Args:
             print: function for printing messages
-            motion_planner: Motion Planner of the robot wihch also has the Point Cloud
+            motion_planner: Motion Planner of the robot wihch also has the Point Cloud with traversable points.
+            coverable_pcd: Point Cloud with points taht should be covered
         '''
         self.name = "General CPP"
         self.print = print
-        self.pcd = motion_planner.traversable_pcd
+        self.traversable_pcd = motion_planner.traversable_pcd
+        self.coverable_pcd = coverable_pcd
         self.motion_planner = motion_planner
         self.current_position = None
         self.path = np.empty((0,3))    
@@ -47,6 +49,10 @@ class CPPSolver:
         Args:
             path: A Nx3 array with waypoints
         '''
+
+        if not len(path):
+            self.print("ERROR: Length of path is 0.")
+
         end_time = timeit.default_timer()
         snapshot = tracemalloc.take_snapshot()
         nbr_of_points_in_path = len(path)
@@ -87,9 +93,9 @@ class CPPSolver:
 
         length_of_path = get_length_of_path(path)
         rotation = get_total_rotation(path)
-        unessecary_coverage_mean = self.pcd.get_coverage_count_per_point(path)
+        unessecary_coverage_mean = self.coverable_pcd.get_coverage_count_per_point(path)
         computational_time = end_time - self.start_time
-        coverage = self.pcd.get_coverage_efficiency()
+        coverage = self.coverable_pcd.get_coverage_efficiency()
         memory_consumption = get_memory_consumption(snapshot)
 
         print_text = "\n" + "=" * 20
@@ -113,13 +119,16 @@ class CPPSolver:
         Args:
             path: A Nx3 array with waypoints
         '''
+        if path is False:
+            return
+
         if len(path) > 0 and len(self.path) > 0:
             if np.array_equal(self.path[-1], path[0]):
                 path = path[1:]
 
             if len(path):
                 self.path = np.append( self.path, path, axis=0 )
-                self.pcd.visit_path(path)
+                self.coverable_pcd.visit_path(path)                 
 
     def move_to(self, position):
         ''' Makes the robot go to a specific position. Marks points along the way as visited.
@@ -128,9 +137,121 @@ class CPPSolver:
         '''
         if len(self.path) > 0:
             curr_position = self.path[-1]
-            self.pcd.visit_path_to_position(position, curr_position)
+            self.coverable_pcd.visit_path_to_position(position, curr_position)
         else:
-            self.pcd.visit_position(position)
+            self.coverable_pcd.visit_position(position)
             
         self.path = np.append( self.path, [position], axis=0 )
+
+
+    def find_closest_wall(self, start_position, step_size):
+        """Using Breadth First Search to find the closest wall or obstacle.
+
+        Args:
+            start_position: A [x,y,z] np.array of the start position of the search
+            step_size: The approximate distance of every step towards wall
+
+        Returns:
+            The position right before wall and the angle of the robot, which will be 
+            along the wall.
+        """
+        queue = np.array([start_position])
+        visited = np.array([start_position])
+        while len(queue):
+            current_position, queue = queue[0], queue[1:]
+            neighbours = self.get_neighbours(current_position, step_size)
+            for neighbour in neighbours:
+                if not self.motion_planner.is_valid_step(current_position, neighbour):
+                    current_angle = self.get_angle(start_position, current_position) + np.pi/2
+                    return current_position, current_angle
+
+                if self.has_been_visited(neighbour, path = visited):
+                    continue
+                
+                queue = np.append(queue, [neighbour], axis=0)
+                visited = np.append(visited, [neighbour], axis=0)
+
+        return False, False
+
+    def get_neighbours(self, current_position, step_size, angle_offset = 0):
+        """Finds all neighbours of a given position. 
+
+        Args:
+            current_position: A [x,y,z] np.array of the start position 
+            step_size: The approximate distance to the neighbours
+            angle_offset: Optional. The yaw angle of the robot.
+
+        Returns:
+            All 8 neighbours of the given position in following order:
+            right, forwardright, forward, forwardleft, left, backleft, back, backright
+        """
+        directions = []
+        for direction_idx in range(8):
+            angle = direction_idx/8*np.pi*2 + angle_offset
+            x = current_position[0] + np.cos(angle) * step_size
+            y = current_position[1] + np.sin(angle) * step_size
+            z = current_position[2]
+            pos = np.array([x, y, z])
+
+            directions.append(self.traversable_pcd.find_k_nearest(pos, 1)[0])
+
+        return directions
+
+    def has_been_visited(self, point, visited_threshhold = 0.05, path=None):
+        """Checks if a point has been visited. Looks if the distance to a point in the
+        path is smaller than visited_threshhold.
+
+        Args:
+            point: A [x,y,z] np.array of the point that should be checked.
+            path (optional): Specific path. Defaults to None.
+
+        Returns:
+            True if the point has been classified as visited
+        """
+        if path is None:
+            path = self.path
+
+        distances = np.linalg.norm(path - point, axis=1)
+        return np.any(distances <= visited_threshhold) 
+
+    def is_blocked(self, from_point, to_point, visited_threshhold, path = None):
+        """Checks if a step is valid by looking if the end point has been visited 
+        or is an obstacle.
+
+        Args:
+            from_point: A [x,y,z] np.array of the start position
+            to_point: A [x,y,z] np.array of the end position
+            path (optional): Specific path. Defaults to None.
+
+        Returns:
+            True if the point has been classified as blocked
+        """
+
+        if path is None:
+            path = self.path
+
+        if self.has_been_visited(to_point, visited_threshhold, path):
+            return True
         
+        if not self.motion_planner.is_valid_step(from_point, to_point):
+            return True
+        
+        return False
+        
+    def get_angle(self, from_pos, to_pos):
+        """Calculates the 2D yaw angle of the robot after making a step
+
+        Args:
+            from_pos: A [x,y,z] np.array of the start position 
+            to_pos: A [x,y,z] np.array of the end position
+
+        Returns:
+            An angle in radians
+        """
+        vec = to_pos[0:2] - from_pos[0:2]
+        return np.angle( vec[0] + vec[1]*1j)
+
+    def step_back(self):
+        self.path, deleted_position = self.path[:-1], self.path[-1]
+        self.coverable_pcd.unvisit_position(deleted_position)
+        return self.path[-1]

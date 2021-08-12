@@ -3,9 +3,10 @@ import open3d as o3d
 import matplotlib.pyplot as plt
 import timeit
 
-from exjobb.FloorSegmentation import FloorSegmentation
-from exjobb.ElevationDetector import ElevationDetector
-from exjobb.TraversabilityDetector import TraversabilityDetector
+from exjobb.TA_FloorSegmentation import FloorSegmentation
+from exjobb.TA_CellSegmentation import CellSegmentation
+from exjobb.TA_CellClassification import CellClassification
+from exjobb.TA_PointClassification import PointClassification
 from exjobb.Parameters import CELL_SIZE, MAX_STEP_HEIGHT
 import pickle
 
@@ -31,33 +32,38 @@ class TerrainAssessment():
         self.pcd_kdtree = pcd.kdtree
         
         self.floor_segmentation = FloorSegmentation(print)
-        self.elevation_detector = ElevationDetector(print)
-        self.traversability_detector = TraversabilityDetector(print)
+        self.cell_segmentation = CellSegmentation(print)
+        self.cell_classification = CellClassification(print)
+        self.point_classification = PointClassification(print, pcd)
         
 
-    def get_coverable_points_idx(self):
-        """ Analyses point cloud to find all coverable points in 3 steps:
+    def get_classified_points(self):
+        """ Analyses point cloud to find all coverable and traversable points in 4 steps:
             1. Floor Segmentation
-            2. Elevation Detection
-            3. Traversability Detection
+            2. Cell Segmentation
+            3. Cell Classification
+            4. Point classification
         Returns:
-            Indexes of all coverable points in the point cloud. 
+            Indexes of all coverable and traversable points in the point cloud. 
         """
 
-        coverable_points_idx = np.array([], int)
+        potential_coverable_points_idx = np.array([], int)
+        uncoverable_border_points = np.empty((0,3))
 
         segmentized_floors = self.floor_segmentation.get_segmentized_floors(self.pcd)
         
         for floor in segmentized_floors[0:2]:
             self.print("="*20)
             self.print(floor.name)                
-            self.elevation_detector.find_elevation(self.pcd, floor)
-            new_coverable_points_idx = self.traversability_detector.get_coverable_points_idx(self.pcd, floor)
-            coverable_points_idx = np.append(coverable_points_idx, new_coverable_points_idx)
+            self.cell_segmentation.find_elevation(self.pcd, floor)
+            new_coverable_points_idx, new_uncoverable_border_points = self.cell_classification.get_coverable_points_idx(self.pcd, floor)
+            potential_coverable_points_idx = np.append(potential_coverable_points_idx, new_coverable_points_idx)
+            uncoverable_border_points = np.append(uncoverable_border_points, new_uncoverable_border_points, axis=0)
 
-        return coverable_points_idx
+        traversable_points, coverable_points, inaccessible_points = self.point_classification.get_classified_points(potential_coverable_points_idx, uncoverable_border_points)
 
-
+        return traversable_points, coverable_points, inaccessible_points
+         
     #CODE BELOW IS FOR ANALYSING TERRAIN ASSESSMENT AND RAMP
     '''
 

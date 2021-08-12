@@ -315,7 +315,6 @@ class MotionPlanner():
         Returns:
             True if the step is valid, False otherwise.
         '''
-        
         total_step_size = np.linalg.norm(to_point - from_point)
         
         if total_step_size == 0:
@@ -332,5 +331,4 @@ class MotionPlanner():
             end_pos =  from_point + step * direction
             if self.traversable_pcd.distance_to_nearest(end_pos) > UNTRAVERSABLE_THRESHHOLD:
                 return False
-        
         return True

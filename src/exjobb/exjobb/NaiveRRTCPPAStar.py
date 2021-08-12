@@ -11,13 +11,13 @@ class NaiveRRTCPPAstar(CPPSolver):
     """ Implementation of the Naive RRT Coverage Path Planning Algorithm
     """
 
-    def __init__(self, print, motion_planner):
+    def __init__(self, print, motion_planner, coverable_pcd):
         """
         Args:
             print: function for printing messages
             motion_planner: Motion Planner of the robot wihch also has the Point Cloud
         """
-        super().__init__(print, motion_planner)
+        super().__init__(print, motion_planner, coverable_pcd)
         self.name = "Naive RRT CPP with Deep First Search"
 
     def get_cpp_path(self, start_point):
@@ -31,6 +31,7 @@ class NaiveRRTCPPAstar(CPPSolver):
         """
 
         self.start_tracking()
+        self.move_to(start_point)
         tree = self.build_RRT_tree(start_point)
         path = self.find_path_through_tree(tree)
         self.print_stats(path)
@@ -50,12 +51,12 @@ class NaiveRRTCPPAstar(CPPSolver):
         '''
         tree = Tree()
         tree.add_node(start_point)
-        pcd = PointCloud(self.print, points=self.motion_planner.traversable_points)
+        tmp_coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
         
-        nbr_of_points_in_pcd = len(pcd.points)
+        nbr_of_points_in_traversable_pcd = len(self.traversable_pcd.points)
 
         def get_random_point():
-            return pcd.points[np.random.randint(nbr_of_points_in_pcd)]
+            return self.traversable_pcd.points[np.random.randint(nbr_of_points_in_traversable_pcd)]
 
         for i in range(NAIVE_RRT_CPP_MAX_ITERATIONS):
             random_point = get_random_point()
@@ -64,10 +65,10 @@ class NaiveRRTCPPAstar(CPPSolver):
             if status == TRAPPED:
                 continue
             
-            pcd.visit_position(new_point, apply_unique=True)
+            tmp_coverable_pcd.visit_position(new_point, apply_unique=True)
 
             if i % NAIVE_RRT_CPP_GOAL_CHECK_FREQUENCY == 0:
-                coverage = pcd.get_coverage_efficiency()
+                coverage = tmp_coverable_pcd.get_coverage_efficiency()
                 self.print("Coverage: " + str(round(coverage*100, 2)) + "%")
                 if coverage > COVEREAGE_EFFICIENCY_GOAL:
                     self.print("Coverage reached")
@@ -102,11 +103,12 @@ class NaiveRRTCPPAstar(CPPSolver):
         prev_node = start_node
 
         for idx, node in enumerate(visited[2:]):
-            self.print("Visiting " + str(idx) + " out of " + str(len(visited)-2))
+            if idx % 1000 == 0:
+                self.print("Visiting " + str(idx) + " out of " + str(len(visited)-2))
             path_to_node = self.motion_planner.Astar(tree.nodes[prev_node], tree.nodes[node])
             self.follow_path(path_to_node)
             prev_node = node
-
+        
         return self.path
     
     

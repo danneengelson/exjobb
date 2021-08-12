@@ -8,7 +8,7 @@ NO_CELL = -1
 class Cell:
     '''Class representing a cell in a Discrete Elevation Model of the environment
     '''
-    def __init__(self, elevation, points_idx_in_full_pcd):
+    def __init__(self, elevation, points_idx_in_full_pcd, coverable_points_idx_in_full_pcd):
         '''
         Args:
             elveation: height of the cell, a z-value.
@@ -16,6 +16,7 @@ class Cell:
                                     that are inside this cell
         '''
         self.points_idx_in_full_pcd = points_idx_in_full_pcd
+        self.coverable_points_idx_in_full_pcd = coverable_points_idx_in_full_pcd
         self.elevation = elevation
         self.is_traversable = False
 
@@ -58,7 +59,7 @@ class Floor:
         grid = np.empty((nbr_of_x, nbr_of_y), dtype=object)
         return grid
 
-    def add_cell(self, x_idx, y_idx, elevation, points_idx_in_full_pcd):
+    def add_cell(self, x_idx, y_idx, elevation, points_idx_in_full_pcd, coverable_points_idx_in_full_pcd):
         ''' Adds a Cell Class instance to the grid. Used by the Elevation
         Detector to assign elevations to cells.
         Args:
@@ -67,9 +68,11 @@ class Floor:
             elevation: height of the cell in the point cloud
             points_idx_in_full_pcd: indexes of the points in the full point cloud
                                     that are inside this cell
+            points_idx_in_full_pcd: indexes of the points in the full point cloud
+                                    that are inside this cell and coverable
 
         '''
-        new_cell = Cell(elevation, points_idx_in_full_pcd)
+        new_cell = Cell(elevation, points_idx_in_full_pcd, coverable_points_idx_in_full_pcd)
         self.cells_grid[x_idx, y_idx] = new_cell
 
     def is_valid_cell(self, pos):
@@ -89,4 +92,4 @@ class Floor:
     def pos_to_position(self, pos):
         x = self.min_x + pos[0]*CELL_SIZE + CELL_SIZE/2
         y = self.min_y + pos[1]*CELL_SIZE + CELL_SIZE/2
-        return np.array([x,y])
+        return x, y
