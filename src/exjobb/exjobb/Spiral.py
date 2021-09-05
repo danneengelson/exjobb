@@ -8,7 +8,7 @@ class Spiral(CPPSolver):
     """ Implementation of the Inward Spiral Coverage Path Planning Algorithm
     """
 
-    def __init__(self, print, motion_planner, coverable_pcd):
+    def __init__(self, print, motion_planner, coverable_pcd, time_limit=None):
         """
         Args:
             print: function for printing messages
@@ -16,8 +16,10 @@ class Spiral(CPPSolver):
         """
         
         self.print = print
-        super().__init__(print, motion_planner, coverable_pcd)
+        super().__init__(print, motion_planner, coverable_pcd, time_limit)
         self.name = "Inward Spiral"
+        self.step_size = SPIRAL_STEP_SIZE
+        self.visited_threshold = SPIRAL_VISITED_TRESHOLD
 
 
     def get_cpp_path(self, start_point):
@@ -33,14 +35,14 @@ class Spiral(CPPSolver):
         self.start_tracking()
         self.move_to(start_point)
 
-        next_starting_point, current_angle = self.find_closest_wall(start_point, SPIRAL_STEP_SIZE)
+        next_starting_point, current_angle = self.find_closest_wall(start_point, self.step_size)
         path_to_next_starting_point = self.motion_planner.Astar(start_point, next_starting_point)
         self.follow_path(path_to_next_starting_point)
 
         current_position = next_starting_point
         coverage = 0
         
-        while coverage < COVEREAGE_EFFICIENCY_GOAL:
+        while coverage < COVEREAGE_EFFICIENCY_GOAL and not self.time_limit_reached():
 
             next_starting_point, evaluated_points =  self.get_next_starting_point(current_position)
             
@@ -65,6 +67,7 @@ class Spiral(CPPSolver):
             current_position = new_current_position
             current_angle = self.get_angle(self.path[-2], current_position)
             coverage = self.coverable_pcd.get_coverage_efficiency()
+            self.save_sample_for_results(coverage)
             self.print("coverage" + str(coverage))
   
         self.print_stats(self.path)
@@ -75,7 +78,7 @@ class Spiral(CPPSolver):
     
 
  
-    def get_next_starting_point(self, start_position):
+    def get_next_starting_point(self, start_position, max_distance = False):
         """Using Wavefront algorithm to find the closest obstacle free uncovered position.
 
         Args:
@@ -84,16 +87,26 @@ class Spiral(CPPSolver):
         Returns:
             An obstacle free uncovered position.
         """
+        if not self.has_been_visited(start_position, self.visited_threshold):
+            return start_position, [start_position]
+            
         last_layer = np.array([start_position])
         visited = np.array([start_position])
         while len(last_layer):
             new_layer = np.empty((0,3))
             for pos in last_layer:
-                neighbours = self.get_neighbours(pos, SPIRAL_STEP_SIZE)
+                
+                
+
+                neighbours = self.get_neighbours(pos, self.step_size)
                 #self.print("neighbours" + str(neighbours))
                 for neighbour in neighbours:
+                    
+                    
+                    if max_distance and np.linalg.norm(start_position - neighbour) > max_distance:
+                        continue
 
-                    if self.has_been_visited(neighbour, SPIRAL_VISITED_TRESHOLD, visited):
+                    if self.has_been_visited(neighbour, self.visited_threshold, visited):
                         #self.print("visited")
                         continue                    
 
@@ -101,7 +114,7 @@ class Spiral(CPPSolver):
                         #self.print("invalid steo")
                         continue
 
-                    if not self.has_been_visited(neighbour, SPIRAL_VISITED_TRESHOLD):
+                    if not self.has_been_visited(neighbour, self.visited_threshold) and self.accessible(neighbour, self.path):
                         #self.print("OK!")
                         return neighbour, visited
                     #self.print("unvisited lets go")
@@ -135,7 +148,7 @@ class Spiral(CPPSolver):
 
             for neighbour in neighbours: 
                 
-                if self.is_blocked(current_position, neighbour, SPIRAL_VISITED_TRESHOLD, current_path) :
+                if self.is_blocked(current_position, neighbour, self.visited_threshold, current_path) :
                     continue
 
                 local_path = np.append(local_path, [neighbour], axis=0)
@@ -161,7 +174,7 @@ class Spiral(CPPSolver):
         Returns:
             List of neighbours in specific order to get the inward spiral motion,
         """
-        right, forwardright, forward, forwardleft, left, backleft, back, backright = self.get_neighbours(current_position, SPIRAL_STEP_SIZE, current_angle)
+        right, forwardright, forward, forwardleft, left, backleft, back, backright = self.get_neighbours(current_position, self.step_size, current_angle)
         return [backright, right, forwardright, forward, forwardleft, left, backleft]
 
 

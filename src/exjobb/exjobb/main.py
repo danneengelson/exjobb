@@ -6,6 +6,7 @@ import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 import numpy as np
 import pickle
+import open3d as o3d
 
 from exjobb.PointCloud import PointCloud
 from exjobb.TerrainAssessment import TerrainAssessment
@@ -16,6 +17,7 @@ from exjobb.BAstar import BAstar
 from exjobb.BAstarVariant import BAstarVariant
 from exjobb.Spiral import Spiral
 from exjobb.RandomBAstar import RandomBAstar
+from exjobb.AstarCPP import AstarCPP 
 
 from exjobb.ROSMessage import RED, GREEN, BLUE
 import exjobb.ROSMessage as ROSMessage
@@ -27,13 +29,14 @@ PUBLISH_MARKERS = True
 PUBLISH_PATH = True
 PUBLISH_PATH_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
-PUBLISH_VISITED_GROUND_PCD = False
+PUBLISH_VISITED_GROUND_PCD = True
 PUBLISH_TRAVERSABLE_PCD = True
 PUBLISH_INACCESSIBLE_PCD = True
 
 MOTION_PLANNER_TEST = False
 CPP_TEST = True
 COLLECT_RESULT = False
+SMALL_POINT_CLOUD = True
 
 class MainNode(Node):
 
@@ -68,6 +71,17 @@ class MainNode(Node):
         self.coverable_point_cloud = PointCloud(self.print, points= coverable_points)
         self.inaccessible_point_cloud = PointCloud(self.print, points= inaccessible_points)
 
+
+        if SMALL_POINT_CLOUD:
+            bbox = o3d.geometry.AxisAlignedBoundingBox(
+                [11, 15, -5.3],
+                [15, 21, 10]
+            )
+            trav_points_idx = bbox.get_point_indices_within_bounding_box(self.traversable_point_cloud.raw_pcd.points)
+            self.traversable_point_cloud = PointCloud(self.print, points= self.traversable_point_cloud.points[trav_points_idx])
+            cov_points_idx = bbox.get_point_indices_within_bounding_box(self.coverable_point_cloud.raw_pcd.points)
+            self.coverable_point_cloud = PointCloud(self.print, points= self.coverable_point_cloud.points[cov_points_idx])
+
         self.markers = []
         
         motion_planner = MotionPlanner(self.print, self.traversable_point_cloud)
@@ -83,10 +97,11 @@ class MainNode(Node):
 
         if not COLLECT_RESULT:
             start_pos = [ -1.35,  -0.69, -5.3]
-            start_pos = [6.252857208251953, -16.641366958618164, -10.328851699829102]
+            start_pos = [ -5.30999994, -20.29999924, -10.27468491]
             end_pos = [ -5.2,  -12.7, -10.3]  
-            #start_pos = [ 24.55999947, 12.69999981, -5.39468813]
-            #end_pos = [ 24.03000069, 13.,         -5.39468813]
+            #start_pos = [ 24.37999916, 12.69999981, -5.31468582]
+            start_pos = [12.26889705657959, 15.767305374145508, -5.22789192199707]
+            end_pos = [24.03000069, 13.  ,       -5.40468597]
             start_point = self.point_cloud.find_k_nearest(start_pos, 1)[0]
             end_point = self.point_cloud.find_k_nearest(end_pos, 1)[0]
             
@@ -102,8 +117,8 @@ class MainNode(Node):
                 self.path = []
 
         if CPP_TEST:
-            self.cpp = RandomBAstar(self.print, motion_planner, self.coverable_point_cloud)
-            self.path = self.cpp.get_cpp_path(start_pos)
+            self.cpp = Spiral(self.print, motion_planner, self.coverable_point_cloud, time_limit=400)
+            self.path = self.cpp.get_cpp_path(start_point)
             self.markers.append( {"point": self.path[-1], "color": RED} )            
             self.points_to_mark = [self.path[-1]]
 
@@ -124,6 +139,7 @@ class MainNode(Node):
             visited_pcd_pub = self.create_timer(timer_period, self.visited_point_cloud_publisher)
         
         if PUBLISH_VISITED_GROUND_PCD:
+            self.coverable_point_cloud = PointCloud(self.print, points= coverable_points)
             self.coverable_point_cloud.visit_path(self.path)
             self.visited_ground_points_pcd = self.coverable_point_cloud.get_covered_points_as_pcd()
             visited_ground_pcd_pub = self.create_timer(timer_period, self.visited_ground_point_cloud_publisher)

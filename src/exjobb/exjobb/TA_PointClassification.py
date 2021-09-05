@@ -42,13 +42,28 @@ class PointClassification():
                 false_uncoverable_idx.append(i)
         uncoverable_border_points = np.delete(uncoverable_border_points, false_uncoverable_idx, 0)
 
+
+
         for i, untraversable_point in enumerate(uncoverable_border_points):
             #if i % 100 == 0:
             #    self.print("Working on border pos " + str(i) + " out of " + str(len(uncoverable_border_points))) 
             collision_risk_points = self.pcd.points_idx_in_radius(untraversable_point, np.sqrt(1/2)*CELL_SIZE + 0.5*ROBOT_SIZE)
             traversable_points_idx = self.delete_values(traversable_points_idx, collision_risk_points)
 
+
+        #Hindsight wrong classified points removal by hand:
+        wrong_points = np.empty((0,3))
+        wrong_points = np.append(wrong_points, [[24.395610809326172, 12.705216407775879, -5.311060428619385]], axis=0)
+        wrong_points = np.append(wrong_points, [[-17.590679168701172, -3.7045161724090576, -6.118121147155762]], axis=0)
+        for wrong_point in wrong_points:
+            points_nearby = self.pcd.points_idx_in_radius(wrong_point, 0.5*ROBOT_SIZE)
+            traversable_points_idx = self.delete_values(traversable_points_idx, points_nearby)
+
         traversable_pcd = PointCloud(self.print, points= self.pcd.points[traversable_points_idx.astype(int)])
+
+        
+
+
         coverable_points_idx_queue = ground_points_idx
         coverable_points_idx_queue = self.delete_values(coverable_points_idx_queue, traversable_points_idx)
         false_coverable_points_idx = np.array([])
@@ -62,6 +77,8 @@ class PointClassification():
                 false_coverable_points_idx = np.append(false_coverable_points_idx, point_idx)
         
         real_coverable_points_idx = self.delete_values(ground_points_idx, false_coverable_points_idx)
+
+        
 
         self.print_result(start, len(real_coverable_points_idx), len(traversable_points_idx), len(false_coverable_points_idx), len(self.pcd.points))  
 

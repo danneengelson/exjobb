@@ -22,7 +22,16 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'main = exjobb.main:main'
+            'main = exjobb.main:main',
+            'exp1 = exjobb.Experiment1:main',
+            'exp2 = exjobb.Experiment2:main',
+            'exp3 = exjobb.ExperimentParameter:main',
+            'exp4 = exjobb.Experiment3:main',
+            'fig2 = exjobb.Experiment3Show:main',
+            'fig3 = exjobb.Experiment4Show:main',
+            'fig = exjobb.ExperimentShowResults:main',
+            'opt = exjobb.Hyperopt:main',
+            'show_latest = exjobb.show_latest:main',
         ],
     },
 )

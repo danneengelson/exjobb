@@ -40,6 +40,7 @@ class PointCloud:
         self.kdtree = o3d.geometry.KDTreeFlann(self.raw_pcd)
         self.covered_points_idx =  np.array([])
 
+
     def visit_position(self, position, apply_unique=False):
         """ Mark points around position as covered
         Args:
@@ -49,7 +50,7 @@ class PointCloud:
         """
         [k, idx, _] = self.kdtree.search_radius_vector_3d(position, ROBOT_RADIUS)
         self.covered_points_idx = np.append(self.covered_points_idx, idx)
-
+        
         if apply_unique:
             self.covered_points_idx = np.unique(self.covered_points_idx)
 
@@ -59,7 +60,6 @@ class PointCloud:
             goal_pos: The position to visit
             start_pos: current position
         """
-
         if np.linalg.norm( goal_pos - start_pos ) > ROBOT_COVERAGE_STEP_SIZE:
             steps = int(np.ceil( np.linalg.norm( goal_pos - start_pos) / ROBOT_COVERAGE_STEP_SIZE ))
             path_to_pos = np.linspace(start_pos, goal_pos, steps)
@@ -76,7 +76,7 @@ class PointCloud:
         Args:
             path: Positions in the path
         """
-
+        
         prev_pos = path[0]
         for pos in path[1:]:
             self.visit_path_to_position(pos, prev_pos)

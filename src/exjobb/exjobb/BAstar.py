@@ -6,14 +6,16 @@ from exjobb.Parameters import BASTAR_STEP_SIZE, BASTAR_VISITED_TRESHOLD, COVEREA
 class BAstar(CPPSolver):
     ''' Solving the Coverage Path Planning Problem with BAstar
     '''
-    def __init__(self, print, motion_planner, coverable_pcd):
+    def __init__(self, print, motion_planner, coverable_pcd, time_limit=None):
         '''
         Args:
             print: function for printing messages
             motion_planner: Motion Planner of the robot wihch also has the Point Cloud
         '''
-        super().__init__(print, motion_planner, coverable_pcd)
+        super().__init__(print, motion_planner, coverable_pcd, time_limit)
         self.name = "BAstar"
+        self.step_size = BASTAR_STEP_SIZE
+        self.visited_threshold = BASTAR_VISITED_TRESHOLD
 
     def get_cpp_path(self, start_point, angle_offset=0):
         """Generates a path that covers the area using BAstar Algorithm.
@@ -32,7 +34,7 @@ class BAstar(CPPSolver):
 
         current_position = start_point
 
-        starting_point, _ = self.find_closest_wall(start_point, BASTAR_STEP_SIZE)
+        starting_point, _ = self.find_closest_wall(start_point, self.step_size)
 
         if starting_point is False:
             starting_point = current_position
@@ -40,7 +42,7 @@ class BAstar(CPPSolver):
             path_to_starting_point = self.motion_planner.Astar(current_position, starting_point)
             self.follow_path(path_to_starting_point)
 
-        while coverage < COVEREAGE_EFFICIENCY_GOAL:
+        while coverage < COVEREAGE_EFFICIENCY_GOAL and not self.time_limit_reached():
             
             path_to_cover_local_area, current_position = self.get_path_to_cover_local_area(starting_point, angle_offset)
 
@@ -48,7 +50,6 @@ class BAstar(CPPSolver):
                 self.print("No path found when covering local area!")  
 
             self.follow_path(path_to_cover_local_area)        
-            
             next_starting_point = self.get_next_starting_point(self.path, angle_offset)     
 
             if next_starting_point is False:
@@ -62,13 +63,13 @@ class BAstar(CPPSolver):
                 path_to_next_starting_point = self.motion_planner.Astar(current_position, next_starting_point)                
 
             self.follow_path(path_to_next_starting_point)
-            
             starting_point = next_starting_point
             
             coverage = self.coverable_pcd.get_coverage_efficiency()
+            self.save_sample_for_results(coverage)
             self.print("coverage" + str(coverage))
         
-        self.print_stats(self.path)
+        #self.print_stats(self.path)
         
         return self.path
 
@@ -98,7 +99,7 @@ class BAstar(CPPSolver):
             neighbours = self.get_neighbours_for_bastar(current_position, angle_offset)
             for neighbour in neighbours:
                 
-                if self.is_blocked(current_position, neighbour, BASTAR_VISITED_TRESHOLD, current_full_path):
+                if self.is_blocked(current_position, neighbour, self.visited_threshold, current_full_path):
                     continue
 
                 current_position = neighbour
@@ -132,15 +133,15 @@ class BAstar(CPPSolver):
         for point in sorted_path_by_distance:
             def b(si, sj):
                                 
-                if not self.is_blocked(point, si, BASTAR_VISITED_TRESHOLD) and self.is_blocked(point, sj, BASTAR_VISITED_TRESHOLD):
+                if not self.is_blocked(point, si, self.visited_threshold) and self.is_blocked(point, sj, self.visited_threshold):
                     return True
 
-                if lower_criteria and not self.is_blocked(point, si, BASTAR_VISITED_TRESHOLD):
+                if lower_criteria and not self.is_blocked(point, si, self.visited_threshold):
                     return True
 
                 return False
 
-            neighbours = self.get_neighbours(point, BASTAR_STEP_SIZE, angle_offset)
+            neighbours = self.get_neighbours(point, self.step_size, angle_offset)
             
             s1 = neighbours[0] #east
             s2 = neighbours[1] #northeast
@@ -175,5 +176,5 @@ class BAstar(CPPSolver):
             north, south, northeast, northwest, southeast, southwest, east, west
         """
 
-        east, northeast, north, northwest, west, southwest, south, southeast = self.get_neighbours(current_position, BASTAR_STEP_SIZE, angle_offset)
+        east, northeast, north, northwest, west, southwest, south, southeast = self.get_neighbours(current_position, self.step_size, angle_offset)
         return [north, south, northeast, northwest, southeast, southwest, east, west]

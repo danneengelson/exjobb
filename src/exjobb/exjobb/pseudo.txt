@@ -1,0 +1,23 @@
+heuristic = (1-coverage) * number of points
+cost = length + 10*rotation
+neighbour(node) = new point in 8 directions if traversable
+
+#ordning: f, node, g, parent  
+queue = (np.Inf, 0  0, None)
+
+while queue:
+    f, node, g, parent = headpop(queue)
+
+    if best f so far:
+        best_path = get path until node
+
+    if reached MAX_ITERATION:
+        return best_path
+
+    for neighbor of node:
+        ncost = g + cost(node, neighbor)
+        h = heuristic(neighbor)
+        parents[neighbor] = node
+        heappush(ncost + h, neighbor, ncost, node)
+
+

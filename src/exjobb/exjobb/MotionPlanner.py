@@ -316,7 +316,6 @@ class MotionPlanner():
             True if the step is valid, False otherwise.
         '''
         total_step_size = np.linalg.norm(to_point - from_point)
-        
         if total_step_size == 0:
             return False
 

@@ -11,13 +11,13 @@ class NaiveRRTCPPAstar(CPPSolver):
     """ Implementation of the Naive RRT Coverage Path Planning Algorithm
     """
 
-    def __init__(self, print, motion_planner, coverable_pcd):
+    def __init__(self, print, motion_planner, coverable_pcd, time_limit = None):
         """
         Args:
             print: function for printing messages
             motion_planner: Motion Planner of the robot wihch also has the Point Cloud
         """
-        super().__init__(print, motion_planner, coverable_pcd)
+        super().__init__(print, motion_planner, coverable_pcd, time_limit)
         self.name = "Naive RRT CPP with Deep First Search"
 
     def get_cpp_path(self, start_point):
@@ -73,6 +73,9 @@ class NaiveRRTCPPAstar(CPPSolver):
                 if coverage > COVEREAGE_EFFICIENCY_GOAL:
                     self.print("Coverage reached")
                     
+                    return tree
+                
+                if self.time_limit_reached():
                     return tree
         
         self.print("Failed to cover")

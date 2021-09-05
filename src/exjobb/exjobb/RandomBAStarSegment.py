@@ -1,11 +1,10 @@
-from exjobb.Parameters import RANDOM_BASTAR_VARIANT_DISTANCE
 import numpy as np
 from exjobb.BAstar import BAstar
 
 class BAStarSegment(BAstar):
     """A class to generate a segment of BAstar path. Used in Sample-Based BAstar CPP Algorithm.
     """
-    def __init__(self, print, motion_planner, starting_point, angle_offset, visited_waypoints, coverable_pcd):
+    def __init__(self, print, motion_planner, starting_point, angle_offset, visited_waypoints, coverable_pcd, max_distance):
         """
         Args:
             print: function for printing messages
@@ -43,7 +42,7 @@ class BAStarSegment(BAstar):
                 break
 
             distance_to_point = np.linalg.norm(next_starting_point - current_position)
-            if distance_to_point < RANDOM_BASTAR_VARIANT_DISTANCE:
+            if distance_to_point < max_distance:
                 break
 
             path_to_next_starting_point = self.motion_planner.Astar(current_position, next_starting_point)

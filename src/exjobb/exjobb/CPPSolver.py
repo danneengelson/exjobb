@@ -1,3 +1,4 @@
+from exjobb.PointCloud import PointCloud
 from exjobb.Tree import Tree
 import os
 import numpy as np
@@ -22,7 +23,7 @@ class CPPSolver:
     ''' Abstract class of a Coverage Path Problem Solver
     '''
 
-    def __init__(self, print, motion_planner, coverable_pcd):
+    def __init__(self, print, motion_planner, coverable_pcd, time_limit = None):
         '''
         Args:
             print: function for printing messages
@@ -37,6 +38,12 @@ class CPPSolver:
         self.current_position = None
         self.path = np.empty((0,3))    
         self.points_to_mark = np.empty((0,3))
+        self.time_limit = time_limit
+        self.data_over_time = [{
+            "time": 0,
+            "path_point": 0,
+            "coverage": 0
+        }]
 
     def start_tracking(self):
         ''' Start the tracking of computational time and memory consumption
@@ -44,11 +51,25 @@ class CPPSolver:
         tracemalloc.start()
         self.start_time = timeit.default_timer()
 
-    def print_stats(self, path):
+    def time_limit_reached(self):
+        ''' Start the tracking of computational time and memory consumption
+        '''
+        if self.time_limit is None:
+            return False
+        current_time = timeit.default_timer() - self.start_time
+        if current_time > self.time_limit:
+            self.print("TIME LIMIT REACHED")
+            return True
+        return False
+    
+
+    def print_stats(self, path, coverage = None):
         ''' Prints stats about the generated path
         Args:
             path: A Nx3 array with waypoints
         '''
+
+        print("Done with planning. Calculating stats.")
 
         if not len(path):
             self.print("ERROR: Length of path is 0.")
@@ -92,10 +113,13 @@ class CPPSolver:
             return rotation
 
         length_of_path = get_length_of_path(path)
-        rotation = get_total_rotation(path)
+        rotation = get_total_rotation(path[:,0:2])
         unessecary_coverage_mean = self.coverable_pcd.get_coverage_count_per_point(path)
         computational_time = end_time - self.start_time
-        coverage = self.coverable_pcd.get_coverage_efficiency()
+        if coverage is None:
+            coverage = self.coverable_pcd.get_coverage_efficiency()
+        
+        
         memory_consumption = get_memory_consumption(snapshot)
 
         print_text = "\n" + "=" * 20
@@ -113,6 +137,17 @@ class CPPSolver:
         print_text += "\n" + "=" * 20
         self.print(print_text)
 
+        return {
+            "Algorithm": self.name,
+            "Coverage efficiency": round(coverage*100, 2),
+            "Number of waypoints": nbr_of_points_in_path,
+            "Length of path": round(length_of_path),
+            "Total rotation": round(rotation),
+            "Visits per point": unessecary_coverage_mean,
+            "Computational time": round(computational_time, 1),
+            "Memory consumption": round(memory_consumption)
+        }
+
 
     def follow_path(self, path):
         ''' Makes the robot follow a path. Marks points along the way as visited.
@@ -126,9 +161,14 @@ class CPPSolver:
             if np.array_equal(self.path[-1], path[0]):
                 path = path[1:]
 
-            if len(path):
+            if len(path) == 1:
                 self.path = np.append( self.path, path, axis=0 )
-                self.coverable_pcd.visit_path(path)                 
+                self.coverable_pcd.visit_path_to_position(path[0], self.path[-1]) 
+
+            if len(path) > 1:
+                new_path = np.append( [self.path[-1]], path, axis=0 )
+                self.path = np.append( self.path, path, axis=0 )
+                self.coverable_pcd.visit_path(new_path)            
 
     def move_to(self, position):
         ''' Makes the robot go to a specific position. Marks points along the way as visited.
@@ -140,6 +180,8 @@ class CPPSolver:
             self.coverable_pcd.visit_path_to_position(position, curr_position)
         else:
             self.coverable_pcd.visit_position(position)
+            self.print(len(self.coverable_pcd.covered_points_idx))
+            
             
         self.path = np.append( self.path, [position], axis=0 )
 
@@ -188,6 +230,7 @@ class CPPSolver:
         directions = []
         for direction_idx in range(8):
             angle = direction_idx/8*np.pi*2 + angle_offset
+
             x = current_position[0] + np.cos(angle) * step_size
             y = current_position[1] + np.sin(angle) * step_size
             z = current_position[2]
@@ -237,6 +280,21 @@ class CPPSolver:
             return True
         
         return False
+
+    def accessible(self, point, visited_waypoints):
+        ''' Checks if a point is accessible by trying to make a path from the point
+        to the closest visited point.
+        Args:
+            point:  A [x,y,z] np.array of the point position
+            visited_waypoints: A Nx3 NumPy array with positions that has been visited.
+        Returns:
+            True if the point is accessible.
+        '''
+        if len(visited_waypoints) == 0:
+            return True
+        closest_point = visited_waypoints[np.argmin(np.linalg.norm(visited_waypoints - point, axis=1))]
+        path_to_point = self.motion_planner.RRT(closest_point, point)
+        return path_to_point is not False
         
     def get_angle(self, from_pos, to_pos):
         """Calculates the 2D yaw angle of the robot after making a step
@@ -255,3 +313,14 @@ class CPPSolver:
         self.path, deleted_position = self.path[:-1], self.path[-1]
         self.coverable_pcd.unvisit_position(deleted_position)
         return self.path[-1]
+
+    def save_sample_for_results(self, coverage = None):
+        current_time = timeit.default_timer() - self.start_time
+        if coverage is None:
+            coverage = self.coverable_pcd.get_coverage_efficiency()
+        current_path_length = len(self.path)
+        self.data_over_time.append({
+            "time": round(current_time, 1),
+            "path_point": current_path_length,
+            "coverage": round(coverage*100, 2)
+        })
