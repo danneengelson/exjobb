@@ -45,7 +45,7 @@ class PointCloud:
             return
 
 
-        self.pcd = self.point_cloud(self.points, 'my_frame')
+        #self.pcd = self.point_cloud(self.points, 'my_frame')
         self.kdtree = o3d.geometry.KDTreeFlann(self.raw_pcd)
         self.covered_points_idx =  np.array([])
 
