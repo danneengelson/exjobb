@@ -226,6 +226,9 @@ def main():
                 if "opt_param" in algorithm:
                     parameters = algorithm["opt_param"]
                     
+                    parameters["step_size"] = parameters["step_size"] * ROBOT_SIZE
+                    parameters["visited_threshold"] = parameters["visited_threshold"] * parameters["step_size"]
+
                 cpp = algorithm["cpp"](my_print, motion_planner, coverable_points, algorithm["experiment_time_limit"], parameters)
 
                 if "sample_specific_stats" in algorithm:

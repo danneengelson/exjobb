@@ -208,6 +208,8 @@ def main():
                 if "opt_param" in algorithm:
                     parameters = algorithm["opt_param"]
                     
+
+                    
                 cpp = algorithm["cpp"](my_print, motion_planner, coverable_points, algorithm["experiment_time_limit"], parameters)
 
                 if "sample_specific_stats" in algorithm:
