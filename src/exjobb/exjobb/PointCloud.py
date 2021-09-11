@@ -1,4 +1,3 @@
-from rclpy.node import Node
 import sensor_msgs.msg as sensor_msgs
 import std_msgs.msg as std_msgs
 
