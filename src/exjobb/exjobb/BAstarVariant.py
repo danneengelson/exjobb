@@ -1,5 +1,5 @@
 import numpy as np
-import csv
+
 
 from exjobb.CPPSolver import CPPSolver 
 from exjobb.Parameters import ROBOT_SIZE, CURVED_BASTAR_STEP_SIZE, CURVED_BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL

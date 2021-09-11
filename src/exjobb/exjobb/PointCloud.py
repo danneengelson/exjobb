@@ -1,5 +1,3 @@
-import sensor_msgs.msg as sensor_msgs
-import std_msgs.msg as std_msgs
 
 import open3d as o3d
 import numpy as np
@@ -159,6 +157,9 @@ class PointCloud:
         return np.mean(counts)
 
     def point_cloud(self, points, parent_frame):
+        import sensor_msgs.msg as sensor_msgs
+        import std_msgs.msg as std_msgs
+
         """ Creates a point cloud message.
         Args:
             points: Nx3 array of xyz positions.
