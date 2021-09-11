@@ -27,3 +27,6 @@ src/exjobb/exjobb/out.pcd
 src/exjobb/exjobb/pointcloud.pcd
 src/exjobb/exjobb/smallpointcloud.pcd
 storage.json
+*.pcd
+src/exjobb/old_code/
+old_stuff/

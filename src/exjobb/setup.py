@@ -11,7 +11,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name), glob('launch/*.launch.py'))
+        (os.path.join('share', package_name), glob('launch/*.launch.py')),
+        (os.path.join("share", package_name, "maps"), glob("maps/*")),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -32,6 +33,12 @@ setup(
             'fig = exjobb.ExperimentShowResults:main',
             'opt = exjobb.Hyperopt:main',
             'show_latest = exjobb.show_latest:main',
+            'astar = exjobb.AstarCPPtesting:main',
+            'sampled = exjobb.ExperimentSampled:main',
+            'showhyper = exjobb.ExperimentShowHyperOpt:main',
+            'showastar = exjobb.ExperimentOptimalResults:main',
+            'maps = exjobb.Map:main',
+            'full_test = exjobb.full_test:main'
         ],
     },
 )
