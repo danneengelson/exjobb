@@ -123,6 +123,9 @@ def save_data(data=None):
 
 def main():
 
+    cpp_ba = lambda print, motion_planner, cov_points, time_limit, parameters: BAstar(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters) 
+    cpp_sampled = lambda print, motion_planner, cov_points, time_limit, parameters: RandomBAstar(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters)
+
     with open(PREVIOUS_VERSION, 'rb') as cached_pcd_file:
         cache_data = pickle.load(cached_pcd_file)
         ALGORITHMS = deepcopy(cache_data)
@@ -131,11 +134,13 @@ def main():
         ALGORITHMS["Sampled BA*"]["do_hyper"] = False
         save_data(ALGORITHMS)
 
+    ALGORITHMS["BA*"]["cpp"] = cpp_ba
+    ALGORITHMS["Sampled BA*"]["cpp"] = cpp_sampled
     
 
-    #with open(RESULTS_FILE, 'rb') as cached_pcd_file:
-    #    cache_data = pickle.load(cached_pcd_file)
-    #    pprint.pprint(cache_data)
+    with open(RESULTS_FILE, 'rb') as cached_pcd_file:
+        cache_data = pickle.load(cached_pcd_file)
+        pprint.pprint(cache_data)
     #return
     
 
