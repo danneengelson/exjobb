@@ -1,10 +1,12 @@
 import pprint
 import pickle
-
-FILE = 'garage_1.dictionary'
+import sys
 
 def main():
-    with open(FILE, 'rb') as cached_pcd_file:
+  
+    inFile = sys.argv[1]
+
+    with open(inFile, 'rb') as cached_pcd_file:
         cache_data = pickle.load(cached_pcd_file)
         pprint.pprint(cache_data)
     return
