@@ -116,7 +116,8 @@ def save_data(data=None):
         else:
             cache_data = deepcopy(data)
         for alg in cache_data.values():
-            del alg["cpp"]
+            if "cpp" in alg:
+                del alg["cpp"]
         pickle.dump(cache_data, cached_pcd_file) 
 
 ###################
