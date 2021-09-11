@@ -232,5 +232,5 @@ def main():
     shower.show_cost_per_coverage(5)
     shower.show_hyper_parameter("step_size")
     
-
-
+if __name__ == "__main__":
+    main()
