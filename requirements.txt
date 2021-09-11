@@ -5,6 +5,7 @@ networkx
 open3d
 pillow
 scipy
+python-tsp
 
 
 ##
