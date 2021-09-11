@@ -2,13 +2,13 @@ import numpy as np
 
 from exjobb.CPPSolver import CPPSolver
 from exjobb.MotionPlanner import MotionPlanner
-from exjobb.Parameters import COVEREAGE_EFFICIENCY_GOAL, SPIRAL_STEP_SIZE, SPIRAL_VISITED_TRESHOLD
+from exjobb.Parameters import ROBOT_SIZE, COVEREAGE_EFFICIENCY_GOAL, SPIRAL_STEP_SIZE, SPIRAL_VISITED_TRESHOLD
 
 class Spiral(CPPSolver):
     """ Implementation of the Inward Spiral Coverage Path Planning Algorithm
     """
 
-    def __init__(self, print, motion_planner, coverable_pcd, time_limit=None):
+    def __init__(self, print, motion_planner, coverable_pcd, time_limit=None, parameters=None):
         """
         Args:
             print: function for printing messages
@@ -18,11 +18,16 @@ class Spiral(CPPSolver):
         self.print = print
         super().__init__(print, motion_planner, coverable_pcd, time_limit)
         self.name = "Inward Spiral"
-        self.step_size = SPIRAL_STEP_SIZE
-        self.visited_threshold = SPIRAL_VISITED_TRESHOLD
+
+        if parameters is None:
+            self.step_size = SPIRAL_STEP_SIZE
+            self.visited_threshold = SPIRAL_VISITED_TRESHOLD
+        else:
+            self.step_size = parameters["step_size"] * ROBOT_SIZE
+            self.visited_threshold =  parameters["visited_threshold"] * self.step_size
 
 
-    def get_cpp_path(self, start_point):
+    def get_cpp_path(self, start_point, angle_offset = None, goal_coverage=None):
         """Generates a path that covers the area using Inward Spiral Algorithm.
 
         Args:
@@ -31,6 +36,11 @@ class Spiral(CPPSolver):
         Returns:
             Nx3 array with waypoints
         """
+        if goal_coverage is None:
+            goal_coverage = COVEREAGE_EFFICIENCY_GOAL
+
+        self.print("step_size: " + str(self.step_size))
+        self.print("visited_threshold: " + str(self.visited_threshold))
 
         self.start_tracking()
         self.move_to(start_point)
@@ -42,7 +52,7 @@ class Spiral(CPPSolver):
         current_position = next_starting_point
         coverage = 0
         
-        while coverage < COVEREAGE_EFFICIENCY_GOAL and not self.time_limit_reached():
+        while coverage < goal_coverage and not self.time_limit_reached():
 
             next_starting_point, evaluated_points =  self.get_next_starting_point(current_position)
             
@@ -68,9 +78,9 @@ class Spiral(CPPSolver):
             current_angle = self.get_angle(self.path[-2], current_position)
             coverage = self.coverable_pcd.get_coverage_efficiency()
             self.save_sample_for_results(coverage)
-            self.print("coverage" + str(coverage))
+            self.print_update(coverage)
   
-        self.print_stats(self.path)
+        #self.print_stats(self.path)
         
         return self.path
 

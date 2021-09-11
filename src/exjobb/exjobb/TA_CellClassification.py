@@ -39,9 +39,9 @@ class CellClassification:
             uncoverable_border_points = np.append(uncoverable_border_points, new_uncoverable_border_points, axis=0)
 
 
-        self.print_result(start, coverable_points_idx, accessible_cells_poses)
+        stats = self.print_result(start, coverable_points_idx, accessible_cells_poses)
 
-        return coverable_points_idx, uncoverable_border_points
+        return coverable_points_idx, uncoverable_border_points, stats
 
     
     def get_accessible_cells_poses(self, ground_cells_poses, floor):
@@ -85,11 +85,19 @@ class CellClassification:
         for island in all_islands:
             self.nbr_inaccessible_cells += len(island)
 
+        
+
         cells_in_biggest_island = max(all_islands, key=len)
         self.nbr_inaccessible_cells -= len(cells_in_biggest_island)
         
         for cell in cells_in_biggest_island:
             floor.cells_grid[cell].is_traversable = True
+
+        #Ugly hack to get the second biggest island for second floor (used in bridge)
+        #if floor.name == "Floor 2":
+        #    all_islands.remove(cells_in_biggest_island)
+        #    cells_in_biggest_island = max(all_islands, key=len)
+        #    self.nbr_inaccessible_cells -= len(cells_in_biggest_island)
 
         return cells_in_biggest_island
 
@@ -171,3 +179,9 @@ class CellClassification:
         self.print("Computational time: " + str(round(end - start, 1)) + " sec")
         self.print("Number of COVERABLE cells: " + str(len(coverable_cells)))
         self.print("Number of INACCESSIBLE cells: " + str(self.nbr_inaccessible_cells))
+        stats = {
+            "Computational time": round(end - start, 1),
+            "Number of COVERABLE cells": len(coverable_cells),
+            "Number of INACCESSIBLE cells": self.nbr_inaccessible_cells
+        }
+        return stats

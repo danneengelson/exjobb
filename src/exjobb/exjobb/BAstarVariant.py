@@ -2,12 +2,12 @@ import numpy as np
 import csv
 
 from exjobb.CPPSolver import CPPSolver 
-from exjobb.Parameters import BASTAR_STEP_SIZE, BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL
+from exjobb.Parameters import ROBOT_SIZE, CURVED_BASTAR_STEP_SIZE, CURVED_BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL
 
 class BAstarVariant(CPPSolver):
     ''' Solving the Coverage Path Planning Problem with a variation of BAstar
     '''
-    def __init__(self, print, motion_planner, coverable_pcd, time_limit = None):
+    def __init__(self, print, motion_planner, coverable_pcd, time_limit = None, parameters = None):
         '''
         Args:
             print: function for printing messages
@@ -15,10 +15,15 @@ class BAstarVariant(CPPSolver):
         '''
         super().__init__(print, motion_planner, coverable_pcd, time_limit)
         self.name = "BAstar Variant"
-        self.step_size = BASTAR_STEP_SIZE
-        self.visited_threshold = BASTAR_VISITED_TRESHOLD
 
-    def get_cpp_path(self, start_point, angle_offset=0):
+        if parameters is None:
+            self.step_size = CURVED_BASTAR_STEP_SIZE
+            self.visited_threshold = CURVED_BASTAR_VISITED_TRESHOLD
+        else:
+            self.step_size = parameters["step_size"] * ROBOT_SIZE
+            self.visited_threshold =  parameters["visited_threshold"] * self.step_size
+
+    def get_cpp_path(self, start_point, angle_offset=0, goal_coverage=None):
         """Generates a path that covers the area using BAstar Variant Algorithm.
 
         Args:
@@ -28,6 +33,8 @@ class BAstarVariant(CPPSolver):
         Returns:
             Nx3 array with waypoints
         """
+        if goal_coverage is None:
+            goal_coverage = COVEREAGE_EFFICIENCY_GOAL
         
         self.start_tracking()
         coverage = 0
@@ -45,7 +52,7 @@ class BAstarVariant(CPPSolver):
 
         next_starting_point_not_found = False
 
-        while coverage < COVEREAGE_EFFICIENCY_GOAL and not self.time_limit_reached():
+        while coverage < goal_coverage and not self.time_limit_reached():
             
             path_to_cover_local_area, current_position = self.get_path_to_cover_local_area(starting_point, angle_offset)
 
@@ -88,9 +95,8 @@ class BAstarVariant(CPPSolver):
             
             coverage = self.coverable_pcd.get_coverage_efficiency()
             self.save_sample_for_results(coverage)
-            self.print("coverage" + str(coverage))
-        
-        self.print_stats(self.path)
+            self.print_update(coverage)        
+        #self.print_stats(self.path)
         
         return self.path
 

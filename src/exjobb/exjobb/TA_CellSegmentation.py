@@ -28,43 +28,63 @@ class CellSegmentation:
         nbr_of_cells = floor.cells_grid.shape[0]*floor.cells_grid.shape[1]
         nbr_of_valid_cells = 0
         kdtree = o3d.geometry.KDTreeFlann(full_pcd)
+        
+        points_in_pcd = np.asarray(full_pcd.points)
+        z_values = points_in_pcd[:,2]
+        points_idx_in_z_range = np.where( np.logical_and(z_values >= floor.z_ground, z_values < floor.z_ceiling ))[0]
 
-        for x_idx, y_idx in np.ndindex(floor.cells_grid.shape):
-            
+
+
+        for x_idx in range(floor.cells_grid.shape[0]):
+            #self.print(str(x_idx) + "/" + str(floor.cells_grid.shape[0]))
             x = x_idx * CELL_SIZE + floor.min_x
-            y = y_idx * CELL_SIZE + floor.min_y  
+            x_values = points_in_pcd[points_idx_in_z_range, 0]
+            points_idx_in_x_range_of_z_values =  np.where( np.logical_and(x_values >= x, x_values < x + CELL_SIZE ))[0]
+            points_idx_in_x_and_z_range = points_idx_in_z_range[points_idx_in_x_range_of_z_values]
 
-            if self.approximate_number_of_points_in_cell_is_too_low(kdtree, x, y, floor):
-                continue
-
-            cell_bounding_box = o3d.geometry.AxisAlignedBoundingBox(
-                    [x, y, floor.z_ground],
-                    [x + CELL_SIZE, y + CELL_SIZE, floor.z_ceiling]
-                )
+            for y_idx in range(floor.cells_grid.shape[1]):
             
-            points_idx_in_cell = cell_bounding_box.get_point_indices_within_bounding_box(full_pcd.points)
+                #x = x_idx * CELL_SIZE + floor.min_x
+                y = y_idx * CELL_SIZE + floor.min_y  
+
+                #if self.approximate_number_of_points_in_cell_is_too_low(kdtree, x, y, floor):
+                #    continue
 
 
-            points_in_cell = np.asarray(full_pcd.points)[points_idx_in_cell]
+                y_values = points_in_pcd[points_idx_in_x_and_z_range, 1]
+                points_idx_in_y_range_of_z_values =  np.where( np.logical_and(y_values >= y, y_values < y + CELL_SIZE ))[0]
+                points_idx_in_cell = points_idx_in_x_and_z_range[points_idx_in_y_range_of_z_values]
 
-            if len(points_in_cell) < MIN_POINTS_IN_CELL:
-                continue
 
-            
-            z_values_of_points_in_cell = np.append(points_in_cell[:,2], floor.z_ceiling)
-            elevation = self.get_elevation_of_cell(z_values_of_points_in_cell)
+                #cell_bounding_box = o3d.geometry.AxisAlignedBoundingBox(
+                #        [x, y, floor.z_ground],
+                #        [x + CELL_SIZE, y + CELL_SIZE, floor.z_ceiling]
+                #    )
+                #points_idx_in_cell = cell_bounding_box.get_point_indices_within_bounding_box(points_in_pcd)
 
-            coverable_points_idx_in_cell = self.get_coverable_points_idx_in_cell(points_in_cell, points_idx_in_cell, elevation)
-            
-            if len(coverable_points_idx_in_cell) < MIN_POINTS_IN_CELL:
-                continue
-            
-            nbr_of_valid_cells += 1
+                #points_in_cell = np.asarray(points_in_pcd)[points_idx_in_cell]
+                points_in_cell = points_in_pcd[points_idx_in_cell]
 
-            floor.add_cell(x_idx, y_idx, elevation, points_idx_in_cell, coverable_points_idx_in_cell)
+                if len(points_in_cell) < MIN_POINTS_IN_CELL:
+                    continue
 
-        self.print_result(start, nbr_of_valid_cells, nbr_of_cells)  
+                
+                z_values_of_points_in_cell = np.append(points_in_cell[:,2], floor.z_ceiling)
+                elevation = self.get_elevation_of_cell(z_values_of_points_in_cell)
 
+                coverable_points_idx_in_cell = self.get_coverable_points_idx_in_cell(points_in_cell, points_idx_in_cell, elevation)
+                
+
+                if len(coverable_points_idx_in_cell) < MIN_POINTS_IN_CELL:
+                    continue
+                
+                nbr_of_valid_cells += 1
+
+                floor.add_cell(x_idx, y_idx, elevation, points_idx_in_cell, coverable_points_idx_in_cell)
+
+        stats = self.print_result(start, nbr_of_valid_cells, nbr_of_cells)  
+
+        return stats
 
 
     def get_coverable_points_idx_in_cell(self, points, points_idx, elevation):  
@@ -133,3 +153,8 @@ class CellSegmentation:
         self.print("Computational time: " + str(round(end - start, 1)) + " sec")
         self.print("Number of INVALID cells: " + str(nbr_of_cells - nbr_of_valid_cells))            
         self.print("TOTAL Number of cells: " + str(nbr_of_cells))   
+        return {
+            "Computational time": round(end - start, 1),
+            "Number of INVALID cells": nbr_of_cells - nbr_of_valid_cells,
+            "TOTAL Number of cells": nbr_of_cells
+        }

@@ -1,3 +1,4 @@
+from exjobb.Environments import PointCloudEnvironment, MapEnvironment
 import rclpy
 from rclpy.node import Node
 import sensor_msgs.msg as sensor_msgs
@@ -12,12 +13,11 @@ from exjobb.PointCloud import PointCloud
 from exjobb.TerrainAssessment import TerrainAssessment
 from exjobb.MotionPlanner import MotionPlanner
 from exjobb.TA_PointClassification import PointClassification
-from exjobb.NaiveRRTCPPAStar import NaiveRRTCPPAstar
 from exjobb.BAstar import BAstar
 from exjobb.BAstarVariant import BAstarVariant
 from exjobb.Spiral import Spiral
 from exjobb.RandomBAstar import RandomBAstar
-from exjobb.AstarCPP import AstarCPP 
+from exjobb.Map import Map
 
 from exjobb.ROSMessage import RED, GREEN, BLUE
 import exjobb.ROSMessage as ROSMessage
@@ -25,7 +25,7 @@ import exjobb.ROSMessage as ROSMessage
 DO_TERRAIN_ASSESSMENT = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
-PUBLISH_MARKERS = True
+PUBLISH_MARKERS = False
 PUBLISH_PATH = True
 PUBLISH_PATH_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
@@ -34,9 +34,10 @@ PUBLISH_TRAVERSABLE_PCD = True
 PUBLISH_INACCESSIBLE_PCD = True
 
 MOTION_PLANNER_TEST = False
-CPP_TEST = True
+CPP_TEST = False
 COLLECT_RESULT = False
-SMALL_POINT_CLOUD = True
+SMALL_POINT_CLOUD = False
+PCD_FROM_MAP = False
 
 class MainNode(Node):
 
@@ -58,23 +59,54 @@ class MainNode(Node):
         timer_period = 5
         animation_time_period = 0.1
         self.animation_iteration = 0
+        self.path = []
         
         #Subscribers:
         self.rviz_sub = self.create_subscription(geometry_msgs.PointStamped, "clicked_point", self.clicked_point_cb, 100)
 
-        self.point_cloud = PointCloud(self.print, file="pointcloud.pcd")
 
-        traversable_points, coverable_points, inaccessible_points = self.do_terrain_assessment()        
+        #environment = PointCloudEnvironment(self.print, "cached_coverable_points.dictionary", "pointcloud.pcd")
+        #environment = MapEnvironment(self.print, "simple_open.dictionary", "src/exjobb/maps/map_simple_open.png", 0.015)
+        #environment = MapEnvironment(self.print, "map_ipa_apartment.dictionary", "src/exjobb/maps/map_ipa_apartment.png", 0.05)
+
+
+
+
+        NEW_POINTCLOUD = False
+        if NEW_POINTCLOUD:
+            
+            #environment = MapEnvironment(self.print, "simple_open.dictionary", "src/exjobb/maps/map_simple_open.png", 0.015)
+            self.point_cloud = PointCloud(self.print, file="garage.pcd", new_point_cloud=True) 
+        else:
+            #environment = PointCloudEnvironment(self.print, "pointcloud2.dictionary", "pointcloud2.pcd", False) #x,y = #351451.84, 4022966.5   Street
+            #environment = PointCloudEnvironment(self.print, "pointcloud3.dictionary", "pointcloud3.pcd", False) #x,y = (351609.25, 4022912.0)  Same Underground garage one floor
+            #environment = PointCloudEnvironment(self.print, "pointcloud4.dictionary", "pointcloud4.pcd", False) #x,y = (326815.75, 4152473.25)  Busy street, with cars
+            #environment = PointCloudEnvironment(self.print, "cached_coverable_points.dictionary", "pointcloud.pcd")
+            #environment = MapEnvironment(self.print, "map_ipa_apartment.dictionary", "src/exjobb/maps/map_ipa_apartment.png", 0.05)
+            #environment = PointCloudEnvironment(self.print, "bridge_2_small.dictionary", "bridge_2_small.pcd", False) 
+            #environment = PointCloudEnvironment(self.print, "bridge_2.dictionary", "bridge_2.pcd", False) 
+            environment = PointCloudEnvironment(self.print, "pre_garage_terrain_assessment.dictionary", "garage.pcd", False)
+            #self.point_cloud = PointCloud(self.print, file="garage.pcd", new_point_cloud=False) 
+
+
+            self.point_cloud  = environment.full_pcd
+
+        #traversable_points, coverable_points, inaccessible_points = self.do_terrain_assessment()        
         
 
-        self.traversable_point_cloud = PointCloud(self.print, points= traversable_points)
-        self.coverable_point_cloud = PointCloud(self.print, points= coverable_points)
-        self.inaccessible_point_cloud = PointCloud(self.print, points= inaccessible_points)
+        #self.traversable_point_cloud = PointCloud(self.print, points= traversable_points)
+        #self.coverable_point_cloud = PointCloud(self.print, points= coverable_points)
+        #self.inaccessible_point_cloud = PointCloud(self.print, points= inaccessible_points)
+
+        #
+        self.traversable_point_cloud = environment.traversable_pcd
+        self.coverable_point_cloud = environment.coverable_pcd
+        self.inaccessible_point_cloud = environment.inaccessible_pcd
 
 
         if SMALL_POINT_CLOUD:
             bbox = o3d.geometry.AxisAlignedBoundingBox(
-                [11, 15, -5.3],
+                [10, 15, -5.3],
                 [15, 21, 10]
             )
             trav_points_idx = bbox.get_point_indices_within_bounding_box(self.traversable_point_cloud.raw_pcd.points)
@@ -93,22 +125,13 @@ class MainNode(Node):
             traversable_pcd_pub = self.create_timer(timer_period, self.traversable_point_cloud_publisher)    
         
         if PUBLISH_INACCESSIBLE_PCD:
-            inaccessible_pcd_pub = self.create_timer(timer_period, self.inaccessible_point_cloud_publisher)    
-
-        if not COLLECT_RESULT:
-            start_pos = [ -1.35,  -0.69, -5.3]
-            start_pos = [ -5.30999994, -20.29999924, -10.27468491]
-            end_pos = [ -5.2,  -12.7, -10.3]  
-            #start_pos = [ 24.37999916, 12.69999981, -5.31468582]
-            start_pos = [12.26889705657959, 15.767305374145508, -5.22789192199707]
-            end_pos = [24.03000069, 13.  ,       -5.40468597]
-            start_point = self.point_cloud.find_k_nearest(start_pos, 1)[0]
-            end_point = self.point_cloud.find_k_nearest(end_pos, 1)[0]
-            
-            
-
+            inaccessible_pcd_pub = self.create_timer(timer_period, self.inaccessible_point_cloud_publisher)                
 
         if MOTION_PLANNER_TEST:
+            start_pos = [5.0625    ,  91.05000305, -32.58319855]
+            end_pos = [  0.8125    ,  93.30000305, -32.33319855]
+            start_point = self.traversable_point_cloud.find_k_nearest(start_pos, 1)[0]
+            end_point = self.traversable_point_cloud.find_k_nearest(end_pos, 1)[0]
             self.path = motion_planner.Astar(start_point, end_point)
             
             self.markers.append( {"point": start_point, "color": RED} )
@@ -117,8 +140,25 @@ class MainNode(Node):
                 self.path = []
 
         if CPP_TEST:
+            random_idx = np.random.choice(len(self.traversable_point_cloud.points), 1, replace=False)[0]
+            #start_point = [-14, -16, -3.6] #
+            #start_point = [-23, 30, -0.9]
+            start_point = self.traversable_point_cloud.points[random_idx]
+
+            param = {'coverage_1': 0.7406103382630331,
+                        'coverage_2': 0.95,
+                        'max_distance': 1.0251370163438323,
+                        'max_distance_part_II': 3.140215943450693,
+                        'max_iterations': 43.22793285963809,
+                        'min_bastar_coverage': 0.04322765870243665,
+                        'min_spiral_length': 87.95823461494331,
+                        'nbr_of_angles': 5.672183507915474}
+
+
             self.cpp = Spiral(self.print, motion_planner, self.coverable_point_cloud, time_limit=400)
             self.path = self.cpp.get_cpp_path(start_point)
+            #self.path = self.cpp.get_cpp_node_path(start_point)
+            self.print(self.cpp.print_stats(self.path))
             self.markers.append( {"point": self.path[-1], "color": RED} )            
             self.points_to_mark = [self.path[-1]]
 
@@ -130,7 +170,7 @@ class MainNode(Node):
                 self.markers.append({"point": marker, "color": GREEN})
             markers_pub = self.create_timer(timer_period, self.marker_publisher)
         
-        if PUBLISH_PATH:
+        if PUBLISH_PATH and len(self.path) > 0:
             path_pub = self.create_timer(timer_period, self.path_publisher)
 
         if PUBLISH_VISITED_PCD:
@@ -138,43 +178,15 @@ class MainNode(Node):
             self.visited_points_pcd = self.point_cloud.get_covered_points_as_pcd()
             visited_pcd_pub = self.create_timer(timer_period, self.visited_point_cloud_publisher)
         
-        if PUBLISH_VISITED_GROUND_PCD:
-            self.coverable_point_cloud = PointCloud(self.print, points= coverable_points)
+        if PUBLISH_VISITED_GROUND_PCD and len(self.path):
+            #self.coverable_point_cloud = PointCloud(self.print, points= coverable_points)
             self.coverable_point_cloud.visit_path(self.path)
             self.visited_ground_points_pcd = self.coverable_point_cloud.get_covered_points_as_pcd()
             visited_ground_pcd_pub = self.create_timer(timer_period, self.visited_ground_point_cloud_publisher)
 
-        if PUBLISH_PATH_ANIMATION:
+        if PUBLISH_PATH_ANIMATION and len(self.path) > 0:
             self.coverable_point_cloud.visited_points_idx = np.array([])
             path_pub = self.create_timer(animation_time_period, self.animated_path_publisher)
-    
-    def do_terrain_assessment(self):
-        '''Calculating points which are theoretically possible to cover, iignoring
-        the size of the robot.
-        Returns:
-            Coverable points and their indices in the point cloud as NumPy arrays.
-        '''
-        if DO_TERRAIN_ASSESSMENT:       
-            terrain_assessment = TerrainAssessment(self.print, self.point_cloud)
-            traversable_points, coverable_points, inaccessible_points = terrain_assessment.get_classified_points()
-
-            with open('cached_coverable_points.dictionary', 'wb') as cached_pcd_file:
-                cache_data = {
-                    "coverable_points": coverable_points, 
-                    "traversable_points": traversable_points,
-                    "inaccessible_points": inaccessible_points
-                    }
-                pickle.dump(cache_data, cached_pcd_file)
-
-        else:
-            with open('cached_coverable_points.dictionary', 'rb') as cached_pcd_file:
-                cache_data = pickle.load(cached_pcd_file)
-                coverable_points = cache_data["coverable_points"]
-                traversable_points = cache_data["traversable_points"]
-                inaccessible_points = cache_data["inaccessible_points"]
-        
-        return traversable_points, coverable_points, inaccessible_points
-
     
     def point_cloud_publisher(self):
         self.pcd_pub.publish(self.point_cloud.pcd)

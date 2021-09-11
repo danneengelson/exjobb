@@ -7,18 +7,17 @@ import pickle
 from exjobb.CPPSolver import CPPSolver
 from exjobb.RandomBAStarSegment import BAStarSegment
 from exjobb.RandomSpriralSegment import RandomSpiralSegment
-from exjobb.RandomBAStarVariantSegment import BAStarVariantSegment
-from exjobb.Parameters import RANDOM_BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL, RANDOM_BASTAR_MAX_ITERATIONS, RANDOM_BASTAR_NUMBER_OF_ANGLES, RANDOM_BASTAR_PART_I_COVERAGE, RANDOM_BASTAR_MIN_COVERAGE, RANDOM_BASTAR_MIN_SPIRAL_LENGTH, RANDOM_BASTAR_VARIANT_DISTANCE, RANDOM_BASTAR_VARIANT_DISTANCE_PART_II
+from exjobb.Parameters import RANDOM_BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL, RANDOM_BASTAR_MAX_ITERATIONS, RANDOM_BASTAR_NUMBER_OF_ANGLES, RANDOM_BASTAR_PART_I_COVERAGE, RANDOM_BASTAR_MIN_COVERAGE, RANDOM_BASTAR_MIN_SPIRAL_LENGTH, RANDOM_BASTAR_VARIANT_DISTANCE, RANDOM_BASTAR_VARIANT_DISTANCE_PART_II, ROBOT_SIZE
 from exjobb.PointCloud import PointCloud
 from exjobb.Tree import Tree
 
-DO_BASTAR_PLANNING = False
+DO_BASTAR_PLANNING = True
 ONLY_PART_I = False
 
 class RandomBAstar(CPPSolver):
     ''' Solving the Coverage Path Planning Problem with Random Sample BAstar with Inward Spiral
     '''
-    def __init__(self, print, motion_planner, coverable_pcd, time_limit=None):
+    def __init__(self, print, motion_planner, coverable_pcd, time_limit=None, parameters=None):
         '''
         Args:
             print: function for printing messages
@@ -27,13 +26,35 @@ class RandomBAstar(CPPSolver):
         self.print = print
         super().__init__(print, motion_planner, coverable_pcd, time_limit)
         self.name = "Random BAstar"
-        self.max_distance = RANDOM_BASTAR_VARIANT_DISTANCE
-        self.max_distance_part_II = RANDOM_BASTAR_VARIANT_DISTANCE_PART_II
+        
+
+        if parameters is None:
+            self.max_distance = RANDOM_BASTAR_VARIANT_DISTANCE
+            self.max_distance_part_II = RANDOM_BASTAR_VARIANT_DISTANCE_PART_II
+            self.nbr_of_angles = RANDOM_BASTAR_NUMBER_OF_ANGLES
+            self.coverage_1 = RANDOM_BASTAR_PART_I_COVERAGE
+            self.coverage_2 = COVEREAGE_EFFICIENCY_GOAL
+            self.min_spiral_length = RANDOM_BASTAR_MIN_SPIRAL_LENGTH
+            self.min_bastar_coverage = RANDOM_BASTAR_MIN_COVERAGE
+            self.max_iterations = RANDOM_BASTAR_MAX_ITERATIONS
+        else:
+            self.max_distance = parameters["max_distance"]
+            self.max_distance_part_II = parameters["max_distance_part_II"]
+            self.nbr_of_angles = int(round(parameters["nbr_of_angles"]))
+            self.coverage_1 = parameters["coverage_1"]
+            self.coverage_2 = parameters["coverage_2"]
+            self.min_spiral_length = parameters["min_spiral_length"]
+            self.min_bastar_coverage = parameters["min_bastar_coverage"]
+            self.max_iterations = parameters["max_iterations"]
+            self.step_size = parameters["step_size"] * ROBOT_SIZE
+            self.visited_threshold = parameters["visited_threshold"] * self.step_size
+
+
         self.randombastar_stats = {}
         self.randombastar_stats_over_time = []
 
 
-    def get_cpp_path(self, start_point):
+    def get_cpp_path(self, start_point, angle_offset_fake = None,  goal_coverage = None):
         """Generates a path that covers the area using BAstar Algorithm.
 
         Args:
@@ -42,6 +63,10 @@ class RandomBAstar(CPPSolver):
         Returns:
             Nx3 array with waypoints
         """
+
+        if goal_coverage is not None:
+            self.coverage_2 = goal_coverage
+            
 
         self.start_tracking()
         
@@ -58,16 +83,18 @@ class RandomBAstar(CPPSolver):
             visited_waypoints = np.empty((0,3))
             coverage_part_I = 0
             #len(uncovered_points)/total_nbr_of_points > 0.05
-            while coverage_part_I < RANDOM_BASTAR_PART_I_COVERAGE and iter <= RANDOM_BASTAR_MAX_ITERATIONS:
+            while coverage_part_I < self.coverage_1 and iter <= self.max_iterations and coverage_part_I < self.coverage_2:
                 iter += 1
                 
                 random_point = self.get_random_uncovered_point(visited_waypoints)
+
+                
                 BAstar_paths_from_point = []
 
-                for angle_idx in range(RANDOM_BASTAR_NUMBER_OF_ANGLES):
-                    angle_offset = angle_idx * 2*np.pi/RANDOM_BASTAR_NUMBER_OF_ANGLES
+                for angle_idx in range(self.nbr_of_angles):
+                    angle_offset = angle_idx * 2*np.pi/self.nbr_of_angles
                     coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
-                    new_BAstar_path = BAStarSegment(self.print, self.motion_planner, random_point, angle_offset, visited_waypoints, coverable_pcd, self.max_distance)
+                    new_BAstar_path = BAStarSegment(self.print, self.motion_planner, random_point, angle_offset, visited_waypoints, coverable_pcd, self.max_distance, self.step_size, self.visited_threshold)
                     
                     BAstar_paths_from_point.append(new_BAstar_path)
                     
@@ -77,7 +104,7 @@ class RandomBAstar(CPPSolver):
                 best_BAstar_paths_from_point = max(BAstar_paths_from_point, key=operator.attrgetter("coverage"))
                 self.print(str(iter) + "- coverage: " + str(best_BAstar_paths_from_point.coverage))
                 
-                if best_BAstar_paths_from_point.coverage > RANDOM_BASTAR_MIN_COVERAGE:
+                if best_BAstar_paths_from_point.coverage > self.min_bastar_coverage:
                     Paths.append( best_BAstar_paths_from_point )
                     visited_waypoints = np.append(visited_waypoints, best_BAstar_paths_from_point.path, axis=0)
                     uncovered_points = self.delete_values(uncovered_points, best_BAstar_paths_from_point.covered_points_idx)
@@ -87,7 +114,8 @@ class RandomBAstar(CPPSolver):
                         "time": timeit.default_timer() - self.start_time,
                         "coverage": coverage_part_I,
                         "iteration": iter,
-                        "path": best_BAstar_paths_from_point.path
+                        "path": best_BAstar_paths_from_point.path,
+                        "segment": best_BAstar_paths_from_point
                     })
 
             
@@ -98,18 +126,18 @@ class RandomBAstar(CPPSolver):
 
             covered_points_idx = self.get_covered_points_idx_from_paths(Paths)
 
-            with open('cached_sample_based_bastar.dictionary', 'wb') as cached_pcd_file:
-                cache_data = {  "covered_points_idx": covered_points_idx, 
-                                "visited_waypoints": visited_waypoints,
-                                "paths": Paths,
-                                }
-                pickle.dump(cache_data, cached_pcd_file)
-        else:
-            with open('cached_sample_based_bastar.dictionary', 'rb') as cached_pcd_file:
-                cache_data = pickle.load(cached_pcd_file)
-                covered_points_idx = np.unique(cache_data["covered_points_idx"])
-                visited_waypoints = cache_data["visited_waypoints"]
-                Paths = cache_data["paths"]
+        #    with open('cached_sample_based_bastar.dictionary', 'wb') as cached_pcd_file:
+        #        cache_data = {  "covered_points_idx": covered_points_idx, 
+        #                        "visited_waypoints": visited_waypoints,
+        #                        "paths": Paths,
+        #                        }
+        #        pickle.dump(cache_data, cached_pcd_file)
+        #else:
+        #    with open('cached_sample_based_bastar.dictionary', 'rb') as cached_pcd_file:
+        #        cache_data = pickle.load(cached_pcd_file)
+        #        covered_points_idx = np.unique(cache_data["covered_points_idx"])
+        #        visited_waypoints = cache_data["visited_waypoints"]
+        #        Paths = cache_data["paths"]
         
         if not ONLY_PART_I:
 
@@ -124,15 +152,22 @@ class RandomBAstar(CPPSolver):
             self.print("Coverage part II: " + str(coverage_part_II))
             self.print("visited_waypoints: " + str(visited_waypoints))
             iter = 0
-            while coverage_part_II < COVEREAGE_EFFICIENCY_GOAL: 
+            failed_tries = 0
+            while coverage_part_II < self.coverage_2 and not self.time_limit_reached(): 
                 iter += 1
+                if failed_tries > 100:
+                    break
+
                 random_uncovered_point = self.get_random_uncovered_point(visited_waypoints)
+
                 coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
-                spiral_path = RandomSpiralSegment(self.print, self.motion_planner, random_uncovered_point, visited_waypoints, coverable_pcd, self.max_distance_part_II)
+                spiral_path = RandomSpiralSegment(self.print, self.motion_planner, random_uncovered_point, visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold)
                 
-                if len(spiral_path.path) < RANDOM_BASTAR_MIN_SPIRAL_LENGTH:
+                if len(spiral_path.path) < self.min_spiral_length:
                     visited_waypoints = np.append(visited_waypoints, [random_uncovered_point], axis=0)
+                    failed_tries += 1
                     continue
+                failed_tries = 0
 
                 self.print("length: " + str(len(spiral_path.path)))
                 Paths.append(spiral_path)    
@@ -144,7 +179,8 @@ class RandomBAstar(CPPSolver):
                         "time": timeit.default_timer() - self.start_time,
                         "coverage": coverage_part_II,
                         "iteration": iter,
-                        "path": spiral_path.path
+                        "path": spiral_path.path,
+                        "segment": spiral_path
                     })
 
             self.randombastar_stats["Part2_segments"] = len(Paths) - self.randombastar_stats["Part1_segments"]
@@ -156,8 +192,8 @@ class RandomBAstar(CPPSolver):
 
             self.follow_paths(current_position, paths_to_visit_in_order)
 
-            self.print_stats(self.path)
-            self.print(self.randombastar_stats)
+            #self.print_stats(self.path)
+            #self.print(self.randombastar_stats)
 
         #self.print(self.randombastar_stats_over_time)
         return self.path
@@ -284,10 +320,11 @@ class RandomBAstar(CPPSolver):
         while self.has_been_visited(random_point, RANDOM_BASTAR_VISITED_TRESHOLD,  visited_waypoints) or not self.accessible(random_point, visited_waypoints):
             random_idx = np.random.choice(len(all_points_idx), 1, replace=False)[0]
             random_point = self.traversable_pcd.points[all_points_idx[random_idx]]
+            
 
         return random_point
 
-    
+
 
 
     def delete_values(self, array, values):

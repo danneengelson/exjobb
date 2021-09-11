@@ -1,10 +1,11 @@
 import numpy as np
+from exjobb.Parameters import ROBOT_SIZE
 from exjobb.Spiral import Spiral
 
 class RandomSpiralSegment(Spiral):
     """A class to generate a segment of BAstar path. Used in Sample-Based BAstar CPP Algorithm.
     """
-    def __init__(self, print, motion_planner, starting_point, visited_waypoints, coverable_pcd, max_distance):
+    def __init__(self, print, motion_planner, starting_point, visited_waypoints, coverable_pcd, max_distance, step_size, visited_threshold):
         """
         Args:
             print: function for printing messages
@@ -13,7 +14,11 @@ class RandomSpiralSegment(Spiral):
             angle_offset: An angle in radians, representing the primary direction of the paths
             visited_waypoints: A Nx3 array with points that has been visited and should be avoided
         """
-        super().__init__(print, motion_planner, coverable_pcd)
+        parameters = {
+            "step_size":  step_size / ROBOT_SIZE,
+            "visited_threshold": visited_threshold / step_size
+        }
+        super().__init__(print, motion_planner, coverable_pcd, parameters)
 
 
         self.start = starting_point

@@ -1,3 +1,4 @@
+from exjobb.Graph import TraversableGraph
 from exjobb.PointCloud import PointCloud
 from exjobb.Tree import Tree
 import os
@@ -45,6 +46,8 @@ class CPPSolver:
             "coverage": 0
         }]
 
+        
+
     def start_tracking(self):
         ''' Start the tracking of computational time and memory consumption
         '''
@@ -62,6 +65,9 @@ class CPPSolver:
             return True
         return False
     
+    def print_update(self, coverage):
+        curr_time = str(round(timeit.default_timer() - self.start_time))
+        self.print(self.name + " " + curr_time + "s: " + str(coverage*100))
 
     def print_stats(self, path, coverage = None):
         ''' Prints stats about the generated path
@@ -114,7 +120,7 @@ class CPPSolver:
 
         length_of_path = get_length_of_path(path)
         rotation = get_total_rotation(path[:,0:2])
-        unessecary_coverage_mean = self.coverable_pcd.get_coverage_count_per_point(path)
+        #unessecary_coverage_mean = self.coverable_pcd.get_coverage_count_per_point(path)
         computational_time = end_time - self.start_time
         if coverage is None:
             coverage = self.coverable_pcd.get_coverage_efficiency()
@@ -128,7 +134,7 @@ class CPPSolver:
         print_text += "\nNumber of waypoints: " + str(nbr_of_points_in_path)
         print_text += "\nLength of path: " + str(round(length_of_path)) + " meter"
         print_text += "\nTotal rotation: " + str(round(rotation)) + " rad"
-        print_text += "\nVisits per point: " + str(unessecary_coverage_mean)
+        #print_text += "\nVisits per point: " + str(unessecary_coverage_mean)
         print_text += "\nComputational time: " + str(round(computational_time, 1)) + " sec" 
         print_text += "\nMemory consumption: " + str(round(memory_consumption, 1)) + " KiB"
 
@@ -143,7 +149,7 @@ class CPPSolver:
             "Number of waypoints": nbr_of_points_in_path,
             "Length of path": round(length_of_path),
             "Total rotation": round(rotation),
-            "Visits per point": unessecary_coverage_mean,
+            #"Visits per point": unessecary_coverage_mean,
             "Computational time": round(computational_time, 1),
             "Memory consumption": round(memory_consumption)
         }
@@ -227,6 +233,7 @@ class CPPSolver:
             All 8 neighbours of the given position in following order:
             right, forwardright, forward, forwardleft, left, backleft, back, backright
         """
+
         directions = []
         for direction_idx in range(8):
             angle = direction_idx/8*np.pi*2 + angle_offset
@@ -277,6 +284,33 @@ class CPPSolver:
             return True
         
         if not self.motion_planner.is_valid_step(from_point, to_point):
+            return True
+        
+        return False
+
+    def is_node_blocked(self, from_node, to_node, path = None):
+        """Checks if a step is valid by looking if the end point has been visited 
+        or is an obstacle.
+
+        Args:
+            from_point: A [x,y,z] np.array of the start position
+            to_point: A [x,y,z] np.array of the end position
+            path (optional): Specific path. Defaults to None.
+
+        Returns:
+            True if the point has been classified as blocked
+        """
+
+        if to_node is False:
+            return True
+
+        if path is None:
+            path = self.node_path
+
+        if to_node in path:
+            return True
+
+        if to_node not in self.graph.neighbours[from_node].values():
             return True
         
         return False

@@ -9,7 +9,7 @@ from exjobb.Parameters import Z_RESOLUTION, GROUND_OFFSET, FLOOR_LEVEL_HEIGHT_TH
 from exjobb.Layer import Layer
 
 VISUALIZE = False
-SHOW_HISTOGRAM = False 
+SHOW_HISTOGRAM = True 
 
 class FloorSegmentation:
     ''' A class for dividing a point cloud into floors    
@@ -22,7 +22,7 @@ class FloorSegmentation:
         '''
         self.print = print
 
-    def get_segmentized_floors(self, pcd):
+    def get_segmentized_floors(self, pcd, lowest_layer_is_base = False):
         ''' Divides the point cloud into floors. 
         Returns:
             A list of instances of class Floor.
@@ -34,7 +34,12 @@ class FloorSegmentation:
         layers = self.get_layers(pcd)
         
         potential_floor_level_height_layers = self.get_potential_floor_level_height_layers(layers)  
+        
         floor_height_layers = self.get_floor_height_layers(potential_floor_level_height_layers)
+
+
+        if lowest_layer_is_base:
+            floor_height_layers.insert(0, potential_floor_level_height_layers[0])
 
         base_height = floor_height_layers[0].start_z
         current_floor = 0
@@ -53,15 +58,15 @@ class FloorSegmentation:
             
             current_floor_points_idx = np.append(current_floor_points_idx, layer.points_idx)
 
-        floor = Floor("Floor " + str(top_floor), pcd, current_floor_points_idx)
+        floor = Floor("Floor " + str(top_floor+1), pcd, current_floor_points_idx)
         segmentised_floors.append(floor)
 
-        self.print_result(segmentised_floors, start)
+        stats = self.print_result(segmentised_floors, start)
 
         if VISUALIZE:
             self.visualze_segmentized_floors(segmentised_floors)
 
-        return segmentised_floors
+        return segmentised_floors, stats
 
     def get_bounding_box(self, pcd):
         '''Calculates the bounding box of the given point cloud
@@ -122,11 +127,11 @@ class FloorSegmentation:
         potential_maximas = local_maximas[nbr_of_points_in_layers[local_maximas] > FLOOR_LEVEL_HEIGHT_THRESSHOLD] 
         # offset to make sure we dont't miss any points of this floor.
         potential_maximas = potential_maximas - int(GROUND_OFFSET / Z_RESOLUTION)
-        
+        self.print("potential_maximas" + str(potential_maximas))
         if SHOW_HISTOGRAM:
             #For tuning FLOOR_LEVEL_HEIGHT_THRESSHOLD:
             plt.plot(np.arange(0, len(nbr_of_points_in_layers))/10, nbr_of_points_in_layers)
-            plt.plot(np.arange(0, len(nbr_of_points_in_layers))/10, 100000*np.ones((len(nbr_of_points_in_layers), 1)))
+            plt.plot(np.arange(0, len(nbr_of_points_in_layers))/10, FLOOR_LEVEL_HEIGHT_THRESSHOLD*np.ones((len(nbr_of_points_in_layers), 1)))
             plt.ylabel('Number of points')
             plt.xlabel('Height [m]')
             plt.title('Number of Points on Different Heights')
@@ -142,6 +147,8 @@ class FloorSegmentation:
         Returns
             A list of Layer that represent the floor level heights        
         '''    
+        if len(potential_layers) == 1:
+            return potential_layers
         
         floor_height_layers = []
         prev_layer = potential_layers[0]
@@ -155,6 +162,7 @@ class FloorSegmentation:
         #Since the upper floor does not have a roof:
         floor_height_layers.append(layer)
         
+        
         return floor_height_layers
     
 
@@ -166,14 +174,27 @@ class FloorSegmentation:
         self.print("FLOOR SEGMENTATION")
         self.print("Number of floors: " + str(len(segmentised_floors)))
         self.print("Computational time: " + str(round(end - start, 1)) + " sec")
+        stats = {
+            "Number of floors": len(segmentised_floors),
+            "Computational time": round(end - start, 1),
+            "Floors": []
+        }
         for floor, segmentised_floor in enumerate(segmentised_floors):
             self.print("-"*20)
             self.print("Floor " + str(floor + 1))
             self.print("Ground: " + str(np.round(segmentised_floor.z_ground,2)))
             self.print("Ceiling: " + str(np.round(segmentised_floor.z_ceiling,2)))
             self.print("Number of points: " + str(len(segmentised_floor.points_idx_in_full_pcd)))
+            stats["Floors"].append({
+                "Name": "Floor " + str(floor + 1),
+                "Ground": np.round(segmentised_floor.z_ground,2),
+                "Ceiling": np.round(segmentised_floor.z_ceiling,2),
+                "Number of points": len(segmentised_floor.points_idx_in_full_pcd)
+            })
             
         self.print("="*20)
+
+        return stats
 
     def visualze_segmentized_floors(self, segmentized_floors):
         ''' Visualizes the floors in different colors
