@@ -10,7 +10,6 @@ import networkx as nx
 import timeit
 from heapq import heappush, heappop
 import tracemalloc 
-import linecache
 
 from networkx.algorithms.shortest_paths.weighted import _weight_function
 from exjobb.MotionPlanner import MotionPlanner

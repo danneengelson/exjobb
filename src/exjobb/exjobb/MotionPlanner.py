@@ -1,6 +1,5 @@
 import numpy as np
 import networkx as nx
-from numba import njit
 
 from heapq import heappush, heappop
 from itertools import count
