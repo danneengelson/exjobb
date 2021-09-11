@@ -23,7 +23,7 @@ from exjobb.full_test_HyperOptimizer import HyptoOptimizer
 POINTCLOUD_FILE = 'garage.pcd'
 TERRAIN_ASSESSMENT_FILE = 'garage_terrain_assessment.dictionary'
 PREVIOUS_VERSION = 'garage_1.dictionary'
-RESULTS_FILE = 'garage_bastar_sampled.dictionary'
+RESULTS_FILE = 'garage_bastar_sampled_better.dictionary'
 HYPER_MAX_EVAL = 100
 NUMBER_OF_START_POINTS = 10
 HYPER_START_POS = np.array([28.6, -6.7, -10.3])
