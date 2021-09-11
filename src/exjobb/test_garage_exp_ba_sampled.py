@@ -132,10 +132,11 @@ def main():
         del ALGORITHMS["Inward Spiral"]
         ALGORITHMS["BA*"]["do_hyper"] = False
         ALGORITHMS["Sampled BA*"]["do_hyper"] = False
+        ALGORITHMS["BA*"]["cpp"] = cpp_ba
+        ALGORITHMS["Sampled BA*"]["cpp"] = cpp_sampled
         save_data(ALGORITHMS)
 
-    ALGORITHMS["BA*"]["cpp"] = cpp_ba
-    ALGORITHMS["Sampled BA*"]["cpp"] = cpp_sampled
+    
     
 
     with open(RESULTS_FILE, 'rb') as cached_pcd_file:
