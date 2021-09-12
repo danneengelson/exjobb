@@ -24,7 +24,7 @@ class Spiral(CPPSolver):
             self.visited_threshold = SPIRAL_VISITED_TRESHOLD
         else:
             self.step_size = parameters["step_size"]  
-            self.visited_threshold =  parameters["visited_threshold"] * self.step_size
+            self.visited_threshold =  parameters["visited_threshold"]
 
 
     def get_cpp_path(self, start_point, angle_offset = None, goal_coverage=None):

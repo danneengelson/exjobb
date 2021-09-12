@@ -123,7 +123,7 @@ def main():
                 opt_param = fmin(   hyper_optimizer.hyper_test_bastar,
                                     space=( hp.uniform('angle_offset', 0, np.pi*2),
                                             hp.uniform('step_size', 0.5, 1), 
-                                            hp.uniform('visited_threshold', 0.5, 1)),
+                                            hp.uniform('visited_threshold', 0.25, 1)),
                                     algo=tpe.suggest,
                                     max_evals=HYPER_MAX_EVAL,
                                     trials=trials)
@@ -146,7 +146,7 @@ def main():
                                             hp.uniform('min_spiral_length', 2, 100), 
                                             hp.uniform('nbr_of_angles', 0.6, 8.4),    
                                             hp.uniform('step_size', 0.5, 1.0), 
-                                            hp.uniform('visited_threshold', 0.5, 1)
+                                            hp.uniform('visited_threshold', 0.25, 0.5)
                                         ),
                                     algo=tpe.suggest,
                                     max_evals=HYPER_MAX_EVAL,

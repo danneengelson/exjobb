@@ -130,7 +130,7 @@ def main():
             elif algorithm_key == "Inward Spiral":
                 opt_param = fmin(   hyper_optimizer.hyper_test_inward_spiral,
                                     space=( hp.uniform('step_size', 0.5, 1), 
-                                            hp.uniform('visited_threshold', 0.5, 1)),
+                                            hp.uniform('visited_threshold', 0.25, 0.5)),
                                     algo=tpe.suggest,
                                     max_evals=HYPER_MAX_EVAL,
                                     trials=trials)

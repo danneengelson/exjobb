@@ -35,10 +35,11 @@ setup(
             'show_latest = exjobb.show_latest:main',
             'astar = exjobb.AstarCPPtesting:main',
             'sampled = exjobb.ExperimentSampled:main',
-            'showhyper = exjobb.ExperimentShowHyperOpt:main',
+            'showhyper = exjobb.show_hyper:main',
             'showastar = exjobb.ExperimentOptimalResults:main',
             'maps = exjobb.Map:main',
-            'full_test = exjobb.full_test:main'
+            'full_test = exjobb.full_test:main',
+            'results = exjobb.show_results:main' 
         ],
     },
 )
