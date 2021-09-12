@@ -45,7 +45,7 @@ class PointCloud:
             return
 
 
-        #self.pcd = self.point_cloud(self.points, 'my_frame')
+        
         self.kdtree = o3d.geometry.KDTreeFlann(self.raw_pcd)
         self.covered_points_idx =  np.array([])
 
@@ -387,6 +387,45 @@ class PointCloud:
         x_center = 351490
         y_center =  4022890.5
         z_center = 58
+        pcd_path = "urban02.pcd"
+
+        self.print("Reading point cloud file...")
+        pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_path)
+        self.print(pcd_path + " consists of " + str(len(pcd.points)) + " points.")
+        self.print("Filtering point cloud...")
+
+        
+        all_points = np.asarray(pcd.points)
+
+        random_idx = np.random.choice(len(all_points), 1, replace=False)[0]
+        x_center = all_points[random_idx,0]
+        y_center = all_points[random_idx,1]
+
+        total_center = np.array([x_center, y_center, z_center])
+        all_points = all_points - total_center
+
+        self.print(all_points)
+        self.print("Chosen point: " + str((x_center, y_center)))
+        
+        all_points = all_points[ np.linalg.norm(all_points[:,0:2], axis=1) < 300]
+        
+        self.print(all_points)
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(all_points)
+        o3d.io.write_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + file, pcd)
+        self.print("Done filtering")
+    
+
+
+
+
+
+    # THIS IS HOW GARAGE WAS FOUND:
+    def filter_pointcloud_official_garage(self, file):
+        x_center = 351490
+        y_center =  4022890.5
+        z_center = 58
         pcd_path = "urban05.pcd"
 
         self.print("Reading point cloud file...")
@@ -397,16 +436,9 @@ class PointCloud:
         
 
         all_points = np.asarray(pcd.points)
-        self.print(all_points)
-        #center = np.mean(all_points, axis=0)
-        #self.print("center: " + str(center) )
-        #all_points = all_points - center
-        self.print(all_points)
-        
 
         random_idx = np.random.choice(len(all_points), 1, replace=False)[0]
-        #x_center = all_points[random_idx,0]
-        #y_center = all_points[random_idx,1]
+
         total_center = np.array([x_center, y_center, z_center])
         all_points = all_points - total_center
 
@@ -416,27 +448,6 @@ class PointCloud:
         all_points = all_points[ np.linalg.norm(all_points[:,0:2], axis=1) < 30]
         
         self.print(all_points)
-
-        #c = np.zeros((1,2))
-        ##c[0,0] = (x2-x1)/2 + x1
-        ##c[0,1] = (y2-y1)/2 + y1
-        #c[0,0] = x_center
-        #c[0,1] =  y_center
-        #temp = all_points[:,:2] - np.repeat(c, all_points.shape[0], axis=0)
-        #valid_idx = np.where(np.linalg.norm(temp, axis=1) < 250)
-        ##self.points = all_points[valid_idx] - np.array([c[0,0], c[0,1], z_center])
-        ##self.points = self.points[self.points[:,0] > -140]
-        #all_points = all_points[all_points[:,0] < 15]
-        #all_points = all_points[all_points[:,1] < 10]
-        #all_points = all_points[all_points[:,2] < -2]
-        ##all_points= all_points[~(np.logical_and(all_points[:,0] < -40, all_points[:,1] < 0))]
-        #self.print(len(all_points))
-        #mean = np.mean(all_points, axis=0)
-        #self.print(mean)
-
-        #all_points = all_points - mean      
-        #self.print(len(all_points))
-
 
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(all_points)

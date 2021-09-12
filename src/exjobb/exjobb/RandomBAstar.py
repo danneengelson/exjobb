@@ -46,8 +46,8 @@ class RandomBAstar(CPPSolver):
             self.min_spiral_length = parameters["min_spiral_length"]
             self.min_bastar_coverage = parameters["min_bastar_coverage"]
             self.max_iterations = parameters["max_iterations"]
-            self.step_size = parameters["step_size"] * ROBOT_SIZE
-            self.visited_threshold = parameters["visited_threshold"] * self.step_size
+            self.step_size = parameters["step_size"]
+            self.visited_threshold = parameters["visited_threshold"]
 
 
         self.randombastar_stats = {}

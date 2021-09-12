@@ -22,62 +22,25 @@ from exjobb.full_test_HyperOptimizer import HyptoOptimizer
 
 POINTCLOUD_FILE = 'garage.pcd'
 TERRAIN_ASSESSMENT_FILE = 'garage_terrain_assessment.dictionary'
-PREVIOUS_VERSION = 'garage_1.dictionary'
 RESULTS_FILE = 'garage_spiral.dictionary'
 HYPER_MAX_EVAL = 100
 NUMBER_OF_START_POINTS = 10
 HYPER_START_POS = np.array([28.6, -6.7, -10.3])
+start_points = {
+    0: np.array([-12.59000015,  11.0,         -5.29468489]), 
+    1: np.array( [26.05999947, -11.0,         -10.37468719]), 
+    2: np.array( [1.59000003, -12.5 ,        -5.66468811]), 
+    3: np.array([16.5   ,      8.69999981, -5.3346858 ]), 
+    4: np.array([-0.91000003,  4.0     ,    -5.41468811]), 
+    5: np.array( [-20.28000069,   4.5 ,        -5.51468706]), 
+    6: np.array( [ 17.5 ,       -13.5,        -10.37468719]), 
+    7: np.array( [-10.84000015, -20.70000076,  -9.66468811]), 
+    8: np.array([ 18.96999931, -11.0,          -5.75468397]), 
+    9: np.array( [ 23.05999947, -10.5,        -10.35468674])}
 
-PRINT = False
+
+PRINT = True
 ALGORITHMS = {
-    "Sampled BA*": {
-        "name": "Sampled BA* & Inward Spiral",
-        "do_hyper": False,
-        "hyper_test": "sampled_bastar_param",
-        "hyper_time_limit": 250,
-        "hyper_min_coverage": 95,
-        "do_experiment": False,
-        "experiment_time_limit": 400,
-        "experiment_results": [],
-        "sample_specific_stats": [],
-        "hyper_data": [],
-        "formatted_hyper_data": [],
-        "cpp": lambda print, motion_planner, cov_points, time_limit, parameters: RandomBAstar(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters), 
-        'line': 'm',
-        'confidence_color': (1.0, 0.0, 1.0, 0.3)
-    },
-    "BA*": {
-        "name": "BA*",
-        "do_hyper": False,
-        "hyper_test": "step_param",
-        "hyper_time_limit": 250,
-        "hyper_min_coverage": 95,
-        "do_experiment": False,
-        "experiment_time_limit": 400,
-        "experiment_results": [],
-        "hyper_data": [],
-        "formatted_hyper_data": [],
-        "cpp": lambda print, motion_planner, cov_points, time_limit, parameters: BAstar(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters) ,
-        'line': 'r',
-        'confidence_color': (1.0, 0.0, 0.0, 0.3)
-    },
-    "Curved BA*": {
-        "name": "Curved BA*",
-        "do_hyper": False,
-        "hyper_test": "step_param",
-        "hyper_time_limit": 60,
-        "hyper_min_coverage": 95,
-        "do_experiment": False,
-        "experiment_time_limit": 400,
-        "experiment_no_of_angles": 1,
-        "experiment_results": [],
-        "hyper_data": [],
-        "formatted_hyper_data": [],
-        "cpp": lambda print, motion_planner, cov_points, time_limit, parameters: BAstarVariant(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters) ,
-        
-        'line': 'g',
-        'confidence_color': (0.0, 1.0, 0.0, 0.3)
-    },
     "Inward Spiral": {
         "name": "Inward Spiral",
         "do_hyper": True,
@@ -92,10 +55,7 @@ ALGORITHMS = {
         "cpp": lambda print, motion_planner, cov_points, time_limit, parameters: Spiral(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters) ,
         'line': 'b',
         'confidence_color': (0.0, 0.0, 1.0, 0.3)
-
     }
-    
-        
 }
 
 ###################
@@ -161,14 +121,14 @@ def main():
             if algorithm_key == "BA*":
                 opt_param = fmin(   hyper_optimizer.hyper_test_bastar,
                                     space=( hp.uniform('angle_offset', 0, np.pi*2),
-                                            hp.uniform('step_size', 0.66, 1.33), 
+                                            hp.uniform('step_size', 0.5, 1), 
                                             hp.uniform('visited_threshold', 0.5, 1)),
                                     algo=tpe.suggest,
                                     max_evals=HYPER_MAX_EVAL,
                                     trials=trials)
             elif algorithm_key == "Inward Spiral":
                 opt_param = fmin(   hyper_optimizer.hyper_test_inward_spiral,
-                                    space=( hp.uniform('step_size', 0.66, 1.33), 
+                                    space=( hp.uniform('step_size', 0.5, 1), 
                                             hp.uniform('visited_threshold', 0.5, 1)),
                                     algo=tpe.suggest,
                                     max_evals=HYPER_MAX_EVAL,
@@ -199,7 +159,8 @@ def main():
 
     #### STEP 3 - Full tests ####
     for start_point_nr in range(NUMBER_OF_START_POINTS):
-        start_point = get_random_point(traversable_points)
+        #start_point = get_random_point(traversable_points)
+        start_point = start_points[start_point_nr]
         print("Start point " + str(start_point_nr) + ": " + str(start_point))
 
         for algorithm_key, algorithm in ALGORITHMS.items():
@@ -222,15 +183,15 @@ def main():
                 save_data(ALGORITHMS)
     
     #### STEP 4 - Show results ####
-    shower = ResultShower(ALGORITHMS)
-    shower.show_coverage_per_time(400, 10)
-    shower.show_rotation_per_time(400, 10)
-    shower.show_cost_per_time(400, 10)
-    shower.show_length_per_time(400, 10)
-    shower.show_length_per_coverage(5)
-    shower.show_rotation_per_coverage(5)
-    shower.show_cost_per_coverage(5)
-    shower.show_hyper_parameter("step_size")
+    #shower = ResultShower(ALGORITHMS)
+    #shower.show_coverage_per_time(400, 10)
+    #shower.show_rotation_per_time(400, 10)
+    #shower.show_cost_per_time(400, 10)
+    #shower.show_length_per_time(400, 10)
+    #shower.show_length_per_coverage(5)
+    #shower.show_rotation_per_coverage(5)
+    #shower.show_cost_per_coverage(5)
+    #shower.show_hyper_parameter("step_size")
     
 if __name__ == "__main__":
     main()

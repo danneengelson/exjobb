@@ -94,10 +94,12 @@ class CellClassification:
             floor.cells_grid[cell].is_traversable = True
 
         #Ugly hack to get the second biggest island for second floor (used in bridge)
-        #if floor.name == "Floor 2":
-        #    all_islands.remove(cells_in_biggest_island)
-        #    cells_in_biggest_island = max(all_islands, key=len)
-        #    self.nbr_inaccessible_cells -= len(cells_in_biggest_island)
+        if floor.name == "Floor 2":
+            self.nbr_inaccessible_cells += len(cells_in_biggest_island)
+            all_islands.remove(cells_in_biggest_island)
+            cells_in_biggest_island = max(all_islands, key=len)
+            self.nbr_inaccessible_cells -= len(cells_in_biggest_island)
+
 
         return cells_in_biggest_island
 

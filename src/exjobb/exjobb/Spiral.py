@@ -23,7 +23,7 @@ class Spiral(CPPSolver):
             self.step_size = SPIRAL_STEP_SIZE
             self.visited_threshold = SPIRAL_VISITED_TRESHOLD
         else:
-            self.step_size = parameters["step_size"] * ROBOT_SIZE
+            self.step_size = parameters["step_size"]  
             self.visited_threshold =  parameters["visited_threshold"] * self.step_size
 
 

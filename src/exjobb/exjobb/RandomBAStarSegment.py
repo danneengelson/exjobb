@@ -16,8 +16,8 @@ class BAStarSegment(BAstar):
         """
         parameters = {
             "angle_offset": angle_offset,
-            "step_size":  step_size / ROBOT_SIZE,
-            "visited_threshold": visited_threshold / step_size
+            "step_size":  step_size,
+            "visited_threshold": visited_threshold
         }
         super().__init__(print, motion_planner, coverable_pcd, parameters)
 

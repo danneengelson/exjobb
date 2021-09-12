@@ -25,7 +25,7 @@ import exjobb.ROSMessage as ROSMessage
 DO_TERRAIN_ASSESSMENT = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
-PUBLISH_MARKERS = False
+PUBLISH_MARKERS = True
 PUBLISH_PATH = True
 PUBLISH_PATH_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
@@ -34,7 +34,7 @@ PUBLISH_TRAVERSABLE_PCD = True
 PUBLISH_INACCESSIBLE_PCD = True
 
 MOTION_PLANNER_TEST = False
-CPP_TEST = False
+CPP_TEST = True
 COLLECT_RESULT = False
 SMALL_POINT_CLOUD = False
 PCD_FROM_MAP = False
@@ -76,7 +76,7 @@ class MainNode(Node):
         if NEW_POINTCLOUD:
             
             #environment = MapEnvironment(self.print, "simple_open.dictionary", "src/exjobb/maps/map_simple_open.png", 0.015)
-            self.point_cloud = PointCloud(self.print, file="garage.pcd", new_point_cloud=True) 
+            self.point_cloud = PointCloud(self.print, file="bridge.pcd", new_point_cloud=True) 
         else:
             #environment = PointCloudEnvironment(self.print, "pointcloud2.dictionary", "pointcloud2.pcd", False) #x,y = #351451.84, 4022966.5   Street
             #environment = PointCloudEnvironment(self.print, "pointcloud3.dictionary", "pointcloud3.pcd", False) #x,y = (351609.25, 4022912.0)  Same Underground garage one floor
@@ -84,8 +84,8 @@ class MainNode(Node):
             #environment = PointCloudEnvironment(self.print, "cached_coverable_points.dictionary", "pointcloud.pcd")
             #environment = MapEnvironment(self.print, "map_ipa_apartment.dictionary", "src/exjobb/maps/map_ipa_apartment.png", 0.05)
             #environment = PointCloudEnvironment(self.print, "bridge_2_small.dictionary", "bridge_2_small.pcd", False) 
-            #environment = PointCloudEnvironment(self.print, "bridge_2.dictionary", "bridge_2.pcd", False) 
-            environment = PointCloudEnvironment(self.print, "pre_garage_terrain_assessment.dictionary", "garage.pcd", False)
+            environment = PointCloudEnvironment(self.print, "bridge_terrain_assessment.dictionary", "bridge_2.pcd", False) 
+            #environment = PointCloudEnvironment(self.print, "pre_garage_terrain_assessment.dictionary", "garage.pcd", False)
             #self.point_cloud = PointCloud(self.print, file="garage.pcd", new_point_cloud=False) 
 
 
@@ -99,9 +99,16 @@ class MainNode(Node):
         #self.inaccessible_point_cloud = PointCloud(self.print, points= inaccessible_points)
 
         #
+        self.point_cloud.pcd = self.point_cloud.point_cloud(self.point_cloud.points, 'my_frame')
+
         self.traversable_point_cloud = environment.traversable_pcd
+        self.traversable_point_cloud.pcd = self.traversable_point_cloud.point_cloud(self.traversable_point_cloud.points, 'my_frame')
+        
         self.coverable_point_cloud = environment.coverable_pcd
+        self.coverable_point_cloud.pcd = self.coverable_point_cloud.point_cloud(self.coverable_point_cloud.points, 'my_frame')
+        
         self.inaccessible_point_cloud = environment.inaccessible_pcd
+        self.inaccessible_point_cloud.pcd = self.inaccessible_point_cloud.point_cloud(self.inaccessible_point_cloud.points, 'my_frame')
 
 
         if SMALL_POINT_CLOUD:
@@ -145,17 +152,17 @@ class MainNode(Node):
             #start_point = [-23, 30, -0.9]
             start_point = self.traversable_point_cloud.points[random_idx]
 
-            param = {'coverage_1': 0.7406103382630331,
-                        'coverage_2': 0.95,
-                        'max_distance': 1.0251370163438323,
-                        'max_distance_part_II': 3.140215943450693,
-                        'max_iterations': 43.22793285963809,
-                        'min_bastar_coverage': 0.04322765870243665,
-                        'min_spiral_length': 87.95823461494331,
-                        'nbr_of_angles': 5.672183507915474}
+            param = {'angle_offset': 3.1639298965427103, 'step_size': 0.9363295148117978, 'visited_threshold': 0.7037583980794171}
 
+            start_point = [-53.7, 54.2, -2.7]
+            start_points = {}
+            for n in range(10):
+                random_idx = np.random.choice(len(self.traversable_point_cloud.points), 1, replace=False)[0]
+                start_points[n] = self.traversable_point_cloud.points[random_idx]
+                self.markers.append( {"point": self.traversable_point_cloud.points[random_idx], "color": RED} )
+            self.print(start_points)
 
-            self.cpp = Spiral(self.print, motion_planner, self.coverable_point_cloud, time_limit=400)
+            self.cpp = BAstar(self.print, motion_planner, self.coverable_point_cloud, time_limit=400, parameters = param)
             self.path = self.cpp.get_cpp_path(start_point)
             #self.path = self.cpp.get_cpp_node_path(start_point)
             self.print(self.cpp.print_stats(self.path))

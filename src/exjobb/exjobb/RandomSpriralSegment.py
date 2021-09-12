@@ -15,8 +15,8 @@ class RandomSpiralSegment(Spiral):
             visited_waypoints: A Nx3 array with points that has been visited and should be avoided
         """
         parameters = {
-            "step_size":  step_size / ROBOT_SIZE,
-            "visited_threshold": visited_threshold / step_size
+            "step_size":  step_size,
+            "visited_threshold": visited_threshold
         }
         super().__init__(print, motion_planner, coverable_pcd, parameters)
 

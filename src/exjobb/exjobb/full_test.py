@@ -20,22 +20,34 @@ from exjobb.full_test_HyperOptimizer import HyptoOptimizer
 
 ###################
 
-POINTCLOUD_FILE = 'garage.pcd'
-TERRAIN_ASSESSMENT_FILE = 'garage_terrain_assessment.dictionary'
-RESULTS_FILE = 'garage_1.dictionary'
-HYPER_MAX_EVAL = 100
+POINTCLOUD_FILE = 'bridge_2.pcd'
+TERRAIN_ASSESSMENT_FILE = 'bridge_terrain_assessment.dictionary'
+RESULTS_FILE = 'brdige_bastar.dictionary'
+HYPER_MAX_EVAL = 3
 NUMBER_OF_START_POINTS = 10
-HYPER_START_POS = np.array([28.6, -6.7, -10.3])
+HYPER_START_POS = np.array([-53.7, 54.2, -2.7])
+start_points = {
+    0: np.array([-43.10443115,   3.99802136,   4.46702003]), 
+    1: np.array([ 21.61431885, -33.00197983,  -2.77298403]), 
+    2: np.array([-34.51068115,  12.49802208,  -4.17298126]), 
+    3: np.array([ 15.9268198 , -36.00197983,  -2.6929822 ]), 
+    4: np.array([38.98931885, 45.49802399,  1.19701743]), 
+    5: np.array([ 3.73931861, 40.74802399,  2.83701849]), 
+    6: np.array([ 15.5205698 , -31.50197792,  -2.8729825 ]), 
+    7: np.array([-16.44818115, -19.25197792,  -3.58298159]), 
+    8: np.array([10.52056885, 42.74802399,  2.46701956]), 
+    9: np.array([53.89556885, 35.99802399,  0.33701676])}
 
-PRINT = False
+
+PRINT = True
 ALGORITHMS = {
     "Sampled BA*": {
         "name": "Sampled BA* & Inward Spiral",
-        "do_hyper": True,
+        "do_hyper": False,
         "hyper_test": "sampled_bastar_param",
         "hyper_time_limit": 250,
         "hyper_min_coverage": 95,
-        "do_experiment": True,
+        "do_experiment": False,
         "experiment_time_limit": 400,
         "experiment_results": [],
         "sample_specific_stats": [],
@@ -79,11 +91,11 @@ ALGORITHMS = {
     },
     "Inward Spiral": {
         "name": "Inward Spiral",
-        "do_hyper": True,
+        "do_hyper": False,
         "hyper_test": "step_param",
         "hyper_time_limit": 250,
         "hyper_min_coverage": 95,
-        "do_experiment": True,
+        "do_experiment": False,
         "experiment_time_limit": 400,
         "experiment_results": [],
         "hyper_data": [],
@@ -122,10 +134,10 @@ def save_data(data=None):
 
 def main():
 
-    with open(RESULTS_FILE, 'rb') as cached_pcd_file:
-        cache_data = pickle.load(cached_pcd_file)
-        pprint.pprint(cache_data)
-    return
+    #with open(RESULTS_FILE, 'rb') as cached_pcd_file:
+    #    cache_data = pickle.load(cached_pcd_file)
+    #    pprint.pprint(cache_data)
+    #return
     
 
     #with open(RESULTS_FILE, 'rb') as cached_pcd_file:
@@ -160,7 +172,7 @@ def main():
             if algorithm_key == "BA*":
                 opt_param = fmin(   hyper_optimizer.hyper_test_bastar,
                                     space=( hp.uniform('angle_offset', 0, np.pi*2),
-                                            hp.uniform('step_size', 0.66, 1.33), 
+                                            hp.uniform('step_size', 0.5, 1), 
                                             hp.uniform('visited_threshold', 0.5, 1)),
                                     algo=tpe.suggest,
                                     max_evals=HYPER_MAX_EVAL,
@@ -198,7 +210,8 @@ def main():
 
     #### STEP 3 - Full tests ####
     for start_point_nr in range(NUMBER_OF_START_POINTS):
-        start_point = get_random_point(traversable_points)
+        #start_point = get_random_point(traversable_points)
+        start_point = start_points[start_point_nr]
         print("Start point " + str(start_point_nr) + ": " + str(start_point))
 
         for algorithm_key, algorithm in ALGORITHMS.items():
@@ -207,8 +220,6 @@ def main():
                 parameters = None
                 if "opt_param" in algorithm:
                     parameters = algorithm["opt_param"]
-                    
-
                     
                 cpp = algorithm["cpp"](my_print, motion_planner, coverable_points, algorithm["experiment_time_limit"], parameters)
 
@@ -233,5 +244,5 @@ def main():
     shower.show_cost_per_coverage(5)
     shower.show_hyper_parameter("step_size")
     
-
-
+if __name__ == "__main__":
+    main()

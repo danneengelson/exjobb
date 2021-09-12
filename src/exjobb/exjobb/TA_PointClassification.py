@@ -55,12 +55,12 @@ class PointClassification():
         wrong_points = np.empty((0,3))
         
         #For pointcloud.pcd:
-        wrong_points = np.append(wrong_points, [[24.395610809326172, 12.705216407775879, -5.311060428619385]], axis=0)
-        wrong_points = np.append(wrong_points, [[-17.590679168701172, -3.7045161724090576, -6.118121147155762]], axis=0)
-        #For bridge.pcd:
-        #wrong_points = np.append(wrong_points, [[-98.5624, 182.8, -30.83]], axis=0)
-        #wrong_points =  np.append(wrong_points, [[ 0.8125    ,  93.30000305, -32.33319855]], axis=0)
+        #wrong_points = np.append(wrong_points, [[24.395610809326172, 12.705216407775879, -5.311060428619385]], axis=0)
         #wrong_points = np.append(wrong_points, [[-17.590679168701172, -3.7045161724090576, -6.118121147155762]], axis=0)
+        #For bridge.pcd:
+        wrong_points = np.append(wrong_points, [[-98.5624, 182.8, -30.83]], axis=0)
+        wrong_points =  np.append(wrong_points, [[ 0.8125    ,  93.30000305, -32.33319855]], axis=0)
+        wrong_points = np.append(wrong_points, [[-17.590679168701172, -3.7045161724090576, -6.118121147155762]], axis=0)
 
         #For small bridge:
         #wrong_points =  np.append(wrong_points, [[ -5.11    ,  15.47, -0.39]], axis=0)

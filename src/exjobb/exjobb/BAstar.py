@@ -21,7 +21,7 @@ class BAstar(CPPSolver):
             self.visited_threshold = BASTAR_VISITED_TRESHOLD
             self.angle_offset =  0
         else:
-            self.step_size = parameters["step_size"] * ROBOT_SIZE
+            self.step_size = parameters["step_size"]
             self.visited_threshold =  parameters["visited_threshold"] * self.step_size
             self.angle_offset =  parameters["angle_offset"]
 

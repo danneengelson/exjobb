@@ -26,7 +26,7 @@ class HyptoOptimizer():
         path = cpp.get_cpp_path(self.hyper_start_pos, goal_coverage=self.current_algorithm["hyper_min_coverage"]/100)
         stats = cpp.print_stats(cpp.path)
         loss = stats["Total rotation"] + stats["Length of path"]
-        self.print(stats)
+        
         
         
         if stats["Coverage efficiency"] > self.current_algorithm["hyper_min_coverage"]:
@@ -35,6 +35,13 @@ class HyptoOptimizer():
             status = STATUS_FAIL
         
         self.current_algorithm["formatted_hyper_data"].append({
+            "parameters": parameters,
+            "stats": stats,
+            "status": status,
+            "cost": loss
+        })
+
+        print({
             "parameters": parameters,
             "stats": stats,
             "status": status,
@@ -52,8 +59,8 @@ class HyptoOptimizer():
     def hyper_test_inward_spiral(self, args): 
         step_size, visited_threshold = args
         parameters = {
-            "step_size":  ROBOT_SIZE * step_size,
-            "visited_threshold": visited_threshold * ROBOT_SIZE * step_size
+            "step_size":  step_size,
+            "visited_threshold": visited_threshold
         }
         return self.hyper_test(parameters)
 
@@ -61,8 +68,8 @@ class HyptoOptimizer():
         angle_offset, step_size, visited_threshold = args
         parameters = {
             "angle_offset": angle_offset,
-            "step_size":  ROBOT_SIZE * step_size,
-            "visited_threshold": visited_threshold * ROBOT_SIZE * step_size
+            "step_size":  step_size,
+            "visited_threshold": visited_threshold
         }
         
         
@@ -81,7 +88,7 @@ class HyptoOptimizer():
             "min_spiral_length": min_spiral_length,
             "min_bastar_coverage": min_bastar_coverage,
             "nbr_of_angles": int(np.round(nbr_of_angles)),
-            "step_size":  ROBOT_SIZE * step_size,
-            "visited_threshold": visited_threshold * ROBOT_SIZE * step_size
+            "step_size":  step_size,
+            "visited_threshold": visited_threshold
         }        
         return self.hyper_test(parameters)

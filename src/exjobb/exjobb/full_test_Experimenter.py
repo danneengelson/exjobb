@@ -72,6 +72,7 @@ class Experimenter():
                 "rotation": round(rotation),
             }
             self.results.append(stats)
+        print(stats)
         print(stats["algorithm"] + " done.")
 
     def perform_sample_cpp(self, cpp, start_point, start_point_nr):
@@ -136,4 +137,5 @@ class Experimenter():
                 "rotation": round(rotation),
         })
         self.sample_specific_stats = cpp.randombastar_stats 
+        print(final_stats)
         print(stats["algorithm"] + " done.")
