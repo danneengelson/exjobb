@@ -1,0 +1,58 @@
+\chapter{Method}
+\label{cha:method}
+
+This chapter contains details about the method that were used to evaluate the CPP algprithms that were described in chapter \ref{cha:cpp}. 
+
+\section{Terrain Assessment}
+
+Before evaluating the CPP algorithms, the point cloud on which they would operate on, had to be prepared. Given a point cloud of a multi floor parking garage environment, all traversable positions for the robot and all coverable points had to be found. The used method and the results of the Terrain Assessment are described in Chapter \ref{cha:terain_assessment}.
+
+\section{Experiment 1 - BA*, Inward Spiral and Curved BA* over Time}
+The goal of the first experiment was to find out how the three algorithms BA*, Inward Spiral and Curved BA* performed over time. Starting the path generation from 10 randomly sampled starting points, each algorithm generated paths until the time limit of 8 minutes were reached or if they could not find any new positions to cover. 
+
+At each iteration in the algorithm the path length, total rotation, coverage and sample time were saved. The mean and standard deviation for each property was calculated between the 10 points for different times.
+
+\section{Experiment 2 - Tuning of $d_{max}$ for Sampled BA* \& Inward Spiral}
+The goal of the second experiment was to compare the three algorithms in Experiment 1 with the new Sampled BA* and Inward Spiral algorithm. The parameters were hand tuned to give paths that were comparable with the algorithms in Experiment 1 regarding computational time and coverage. Keeping the rest of the parameters fixed, different values of the parameter $d_{max}$ were tested for the same 10 points as in Experiment 1. Mean and standard deviation was computed and compared with the other algorithms.
+
+\section{Properties}
+\label{sec:properties} 
+
+All values presented in the results are based on a path, $W$, represented as a list of three diemensional waypoints. A three dimensional point cloud, with only points classified as coverable was used for coverage calculations.
+
+\subsection{Length of path}
+Length of path, $l_{tot}$ was calculated by taking the sum of the euclidean distances between the $N$ points in the path, $W$, when visiting them in order, i.e.
+
+$$
+l_{tot} = \sum^N_{i=1}{|p_i - p_{i-1}|}
+$$
+
+
+\subsection{Total rotation}
+Total rotation was the sum of the differences in the yaw angle between the vector into each point and out of each point. After projecting every point in path $W$ on a 2D plane, the total rotation, $\phi_{tot}$, was calculated with
+$$
+\phi_{tot} = \sum^N_{i=2}{|\arccos{(\frac{p_i-p_{i-1}}{|p_i-p_{i-1}|} \cdot \frac{p_{i-1}-p_{i-2}}{|p_{i-1}-p_{i-2}|}})|}
+$$
+
+\subsection{Coverage}
+Coverage is the percentage of coverable points that has been covered. A point has been covered if it is within the range radius of the robot $r_R$ from any point in path $W$. If the distance between two points was bigger than $\lambda^R_{cov}$, steps of size $\lambda^R_{cov}$ were taken along the path and points within the range at each step did also got covered, see algorithm  \ref{alg:coverage_calc}.
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwData{Path $W$, Point cloud $P$}
+\KwResult{Coverage $C$} 
+$P_{cov} = \emptyset$ \\
+\For{\textup{point $p_i \in P$}}{
+    \eIf{$|p_i - p_{i-1}| > \lambda^R_{cov}$ }{
+        $W_{sub}$ = \textup{Evenly spaced points along the line from $p_i$ to $p_{i-1}$ with maximum space of $\lambda^R_{cov}$ in between} \\
+    }{
+        $W_{sub} = p_i $\\
+    }
+    \For{\textup{point $p \in W_{sub}$}}{
+        $P_{cov} \leftarrow $ \textup{all points in $P$ within radius $r_R$ from $p$} \\
+    }
+}
+\textup{\textbf{return $|P_{cov}|/|P|$}}
+ \caption{Calculating Coverage}
+ \label{alg:coverage_calc}
+\end{algorithm}
