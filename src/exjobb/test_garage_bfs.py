@@ -29,7 +29,7 @@ NUMBER_OF_START_POINTS = 10
 HYPER_START_POS = np.array([28.6, -6.7, -10.3])
 
 
-PRINT = True
+PRINT = False
 ALGORITHMS = {
     "BFS": {
         "name": "BFS",
