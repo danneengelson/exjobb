@@ -22,7 +22,7 @@ from exjobb.full_test_HyperOptimizer import HyptoOptimizer
 
 POINTCLOUD_FILE = 'garage.pcd'
 TERRAIN_ASSESSMENT_FILE = 'garage_terrain_assessment.dictionary'
-RESULTS_FILE = 'garage_sampled.dictionary'
+RESULTS_FILE = 'garage_sampled_only_iter.dictionary'
 HYPER_MAX_EVAL = 100
 NUMBER_OF_START_POINTS = 10
 HYPER_START_POS = np.array([28.6, -6.7, -10.3])
@@ -137,16 +137,16 @@ def main():
             elif algorithm_key == "Sampled BA*":
                 coverage_2 = algorithm["hyper_min_coverage"]/100
                 opt_param = fmin(   hyper_optimizer.hyper_test_sampled_bastar_param,
-                                    space=( hp.uniform('coverage_1', coverage_2-0.002, coverage_2), 
-                                            hp.uniform('coverage_2', coverage_2-0.002, coverage_2), 
+                                    space=( hp.uniform('coverage_1', coverage_2-0.001, coverage_2), 
+                                            hp.uniform('coverage_2', coverage_2-0.001, coverage_2), 
                                             hp.uniform('max_distance', 1, 10), 
                                             hp.uniform('max_distance_part_II', 4, 10),
                                             hp.uniform('max_iterations', 30, 200), 
                                             hp.uniform('min_bastar_coverage', 0.005, 0.05), 
                                             hp.uniform('min_spiral_length', 2, 100), 
                                             hp.uniform('nbr_of_angles', 7.6, 8.4),    
-                                            hp.uniform('step_size', 0.62, 0.63), 
-                                            hp.uniform('visited_threshold', 0.47, 0.5)
+                                            hp.uniform('step_size', 0.5, 1.0), 
+                                            hp.uniform('visited_threshold', 0.25, 0.5)
                                         ),
                                     algo=tpe.suggest,
                                     max_evals=HYPER_MAX_EVAL,
