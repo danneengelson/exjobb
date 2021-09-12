@@ -39,7 +39,7 @@ start_points = {
     9: np.array([53.89556885, 35.99802399,  0.33701676])}
 
 
-PRINT = True
+PRINT = False
 ALGORITHMS = {
     "Sampled BA*": {
         "name": "Sampled BA* & Inward Spiral",

@@ -40,7 +40,7 @@ start_points = {
 
 
 
-PRINT = True
+PRINT = False
 ALGORITHMS = {
     "Inward Spiral": {
         "name": "Inward Spiral",
