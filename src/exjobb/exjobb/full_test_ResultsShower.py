@@ -1,6 +1,7 @@
 import pprint
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas
 
 class ResultShower:
     def __init__(self, data):
@@ -128,23 +129,51 @@ class ResultShower:
     def show_hyper_parameter(self, parameter):
         data = self.get_hyper_parameter_data(parameter)
 
+        #fig, ax = plt.subplots(nrows=3, sharex=True)
+
+
         formatted_data = []
         xticklabels = []
+        nice_label = {}
+ 
         for algorithm_data in data:
             xticklabels.append(algorithm_data["algorithm"])
+            alg_formatted_data = []
             data_values = algorithm_data["data"]
+            #print(data_values)
+            data_values = sorted(data_values, key=lambda x: x["value"])
+            #for evalutaion in data_values:
+            #    alg_formatted_data.append(np.array([evalutaion["value"], evalutaion["cost"] ]).T)
+                #formatted_data.append({evalutaion["value"]: evalutaion["cost"]})
+
             values = np.array( [ evalutaion["value"] for evalutaion in data_values])
             costs = np.array( [ evalutaion["cost"] for evalutaion in data_values] )
+            total = {"value": values, "cost": costs}
+            df = pandas.DataFrame(total)
+            print(df.columns)
+            column = "cost"
             #formatted_data.append(np.vstack((values, costs)).T)
-            formatted_data.append(values)
-            print(algorithm_data["algorithm"] + str(len(values)))
-
+            
+            #print(algorithm_data["algorithm"] + str(len(values)))
+            data_frame = []
+            for column_value in sorted(df[column].unique()):
+                data_frame.append(np.array(df[df[column] == column_value].value))
+                #if column_value in nice_label:
+                #    labels.append(nice_label[column_value])
+                #else:
+                #    labels.append(column_value)
+            formatted_data.append(data_frame)
+        
         fig, ax = plt.subplots()
         print(formatted_data)
+
+        import seaborn as sns
+        
         if len(formatted_data) == 1:
-            ax.violinplot(formatted_data[0])
+            ax = sns.violinplot(formatted_data[0])
         else:
-            ax.violinplot(formatted_data)
+            #ax =  sns.violinplot(x="cost", y="value", data=formatted_data)
+            ax.violinplot(data)
 
         ax.set_xticks(np.arange(1, len(xticklabels)+1))
         ax.set_xticklabels(xticklabels)
