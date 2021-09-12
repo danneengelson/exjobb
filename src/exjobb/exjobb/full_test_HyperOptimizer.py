@@ -92,3 +92,44 @@ class HyptoOptimizer():
             "visited_threshold": visited_threshold
         }        
         return self.hyper_test(parameters)
+
+
+    def hyper_test_bfs(self, args):
+        step_size, visited_threshold = args
+        parameters = {
+            "step_size":  step_size,
+            "visited_threshold": visited_threshold
+        }
+        cpp = self.current_algorithm["cpp"](self.print, self.motion_planner, self.coverable_points, self.current_algorithm["hyper_time_limit"], parameters)
+        path = cpp.breadth_first_search(self.hyper_start_pos, goal_coverage=self.current_algorithm["hyper_min_coverage"]/100)
+        stats = cpp.print_results()
+        loss = stats["no_of_nodes"]
+        
+        
+        
+        if stats["coverage"] > self.current_algorithm["hyper_min_coverage"]:
+            status = STATUS_OK
+        else:
+            status = STATUS_FAIL
+        
+        self.current_algorithm["formatted_hyper_data"].append({
+            "parameters": parameters,
+            "stats": stats,
+            "status": status,
+            "cost": loss
+        })
+
+        print({
+            "parameters": parameters,
+            "stats": stats,
+            "status": status,
+            "cost": loss
+        })
+
+        self.save()
+
+        return {
+            'loss': loss,
+            'status': status,
+            'stats': stats,
+        }    
