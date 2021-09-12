@@ -155,8 +155,8 @@ class RandomBAstar(CPPSolver):
             failed_tries = 0
             while coverage_part_II < self.coverage_2 and not self.time_limit_reached(): 
                 iter += 1
-                if failed_tries > 100:
-                    break
+                #if failed_tries > 100:
+                #    break
 
                 random_uncovered_point = self.get_random_uncovered_point(visited_waypoints)
 
