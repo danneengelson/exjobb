@@ -1,0 +1,88 @@
+%%% main.tex --- 
+%% 
+%% Filename: main.tex
+%% Description: 
+%% Author: Ola Leifler
+%% Maintainer: 
+%% Created: Thu Oct 14 12:52:20 2010 (CEST)
+%% Version: $Id$
+%% Version: 
+%% Last-Updated: Wed Jun 28 10:57:24 2017 (+0200)
+%%           By: Ola Leifler
+%%     Update #: 169
+%% URL: 
+%% Keywords: 
+%% Compatibility: 
+%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 
+%%% Commentary: 
+%% 
+%% 
+%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 
+%%% Change log:
+%% 
+%% 
+%% RCS $Log$
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 
+%%% Code:
+
+\documentclass[msc,lith,english]{liuthesis}
+%% Settings go in settings.tex
+\include{settings}
+\usepackage{rotating}
+\usepackage{color}
+
+% \usepackage{changebar}
+
+\department{Institutionen för datavetenskap}
+\departmentenglish{Department of Computer and Information Science}
+\departmentshort{IDA}
+% If this is a thesis at the cognitive science study programme, use
+% the "area" command to generate a proper (?) ISRN
+% \area{KOGVET-A}
+
+% Include an external supervisor on the cover page
+\externalsupervisor{Erik Örjehag}
+\supervisor{Mattias Tiger}
+\examiner{Fredrik Heintz}
+\titleenglish{Coverage Path Planning of a Multi-floor Outdoor Environment}
+\subtitleenglish{Comparison between existing and new approaches}
+\titleswedish{Vägplanering för sponing av utomhusmiljöer med flera våningar}
+\thesissubject{Datateknik}
+
+\publicationyear{2021}
+\currentyearthesisnumber{001}
+\dateofpublication{2021-??-??}
+
+\author{Daniel Engelsons}
+
+% Two authors
+% \author{\parbox{\textwidth}{Ola Leifler\\
+%   Alexander Sanner}}
+
+\begin{document}
+
+\chapterstyle{VZ43}
+
+\include{1-intro}
+\include{2-related_work}
+\include{3-background}
+\include{4-terrain_assessment}
+\include{5-cpp}
+
+%\include{theory}
+\include{6-method}
+\include{7-results}
+\include{8-discussion}
+\include{9-conclusion}
+\printbibliography
+
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% demothesis.tex ends here
+

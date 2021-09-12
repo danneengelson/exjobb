@@ -1,0 +1,97 @@
+%%% lorem.tex --- 
+%% 
+%% Filename: lorem.tex
+%% Description: 
+%% Author: Ola Leifler
+%% Maintainer: 
+%% Created: Wed Nov 10 09:59:23 2010 (CET)
+%% Version: $Id$
+%% Version: 
+%% Last-Updated: Tue Oct  4 11:58:17 2016 (+0200)
+%%           By: Ola Leifler
+%%     Update #: 7
+%% URL: 
+%% Keywords: 
+%% Compatibility: 
+%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 
+%%% Commentary: 
+%% 
+%% 
+%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 
+%%% Change log:
+%% 
+%% 
+%% RCS $Log$
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 
+%%% Code:
+
+\chapter{Related Work}
+\label{cha:related_work}
+
+The coverage path planning problem is a well known problem with many different solutions. It has been studied by many researchers throughout the years and in this chapter a summary of the most relevant approaches will be discussed.
+
+\section{Grid Based Approach}
+A common approach to solve the coverage path planning problem in 2D is to represent the region of interest as a grid and visit all cells that should be covered. There are many grid based algorithms. 
+
+A simple solution is to follow the walls and make an inward spiral. Appearing in so called dead zones, could be solved with motion planning algorithms, such as A* \cite{inwardsspiral}. An other spiral approach divides the area into big cells and subcells. By following a spanning tree through every free subcell the algorithm provides a close-to-optimal covering path \cite{1013479}. 
+
+A benefit of working with grid cells is that they could be assigned values easily. This can be used by a Wavefront \cite{Zelinsky2007PlanningPO} or a Local Energy Minimization \cite{7139818} algorithm, which creates a path by looking for the next unvisited cell with the best metrics. Metrics could be distance to a specific cell, translational distance, rotational distance or status of neighbour cells. This makes these types of algorithm more customizable for a specific robot and application comparing to the spiral based algorithms.
+
+Other grid based algorithms are based on neural netweorks \cite{1262545} and has the advantage of working in environments with dynamic obstacles. In \cite{eriksurvey}, Bormann et al. compared the neural network approach with a Traveling Salesman Problem solution and the previously mentioned Local Energy Minimization. The experiments showed that the Local Energy Minimization was the best approach concerning computational time, rotation length and path length. On the other hand, it gave a little bit less coverage.
+
+Generally, the cons of a grid based approaches is the need of approximation and that memory consumption is often exponential with the size of the area. They also require a good localization of the robot, making them more suitable for indoor environments. \cite{mattiassurvey}
+
+\section{Cellular Decomposition Approach}
+\label{rel_work_cellularapproach}
+
+An other approach is to decompose the area of interest into obstacle free regions and cover them by zigzag driving back and forth. The decomposition, the angle of the back and forth lines and the order of regions to cover varies between different algorithms. These algorithms often assumes that all obstacles and cleaning areas are represented as polygons. \cite{mattiassurvey}
+
+Trapezoidal decomposition is the simplest approach. For every vertex in the polygons, representing the obstacles as well as the boundary of the region of interest, a boundary for a trapezoid shaped cell is created by drawing a line. Unfortunately, this decomposition often result in a big number of cells which has to be covered one by one and consequently, generate an ineffective path. \cite{robotbook}
+
+A better algorithm is called Boustrophedon decomposition. Instead of making a boundary for every vertex this algorithm uses only critical vertexes. Fewer cells makes the path shorter \cite{robotbook}. When the Boustrophedon decomposition were compared with the grid cell algorithms in \cite{eriksurvey} it had generally better coverage percentage, but longer computational time and paths in environments with obstacles.
+
+The Boustrophedon decomposition is a specialization of Morse decomposition, which is a general way to decompose areas using slicing and critical points. The general method works for obstacles of any shape and the cells/slices can be shaped as spirals, spikes or any other shape that can be mathematically described. \cite{robotbook}
+
+Since the paths of these zigzag methods includes a lot of turns, which are disadvantageous, Bochkarev and Smith \cite{7743548} proposed a method that first decomposes the area, and then plans the path to minimize the number of turns by looking at the altitude of the polygons and optimize the decomposition.
+
+A different approach is to divide the area by calculating a Voronoi graph which is based on finding central points between obstacles or cell boundaries. The advantage of this approach, in comparison to grid cell based approaches, is that its resolution depends on the complexity of the environment instead of the cell resolution, making it less space consuming. \cite{THRUN199821} 
+
+\section{Graph Search Approach}
+\label{rel_work_graph_search}
+An approach proposed in \cite{astarapproach} is using graph search. It is based on the A*-algorithm and an occupancy grid of the environment. Since turns are expensive, the algorithm's cost function is based on turns. The planned path consists of junctions of lines that covers the area and minimizes the number of turns.
+
+A similar approach is called the BA* algorithm, which is a combination of Boustrophedon decomposition, which was described in \ref{rel_work_cellularapproach}, and A*. It is an online method that does not require prior knowledge of the environment. It covers one region at a time by making zig-zag line paths and a backtracking list of points that are connected to other regions. As soon as a critical point is reached, it uses A* to find a path to the closest point in the backtracking list. This loop continues until the backtracking list is empty and all points has been covered. Based on simulations, this approach was shown to be better than Boustrophedon decomposition in terms of the necessity of prior knowledge of the environment, the length of the path and the number of regions to cover. \cite{bastar}
+
+\section{Random Sample Approach}
+\label{rel_work_randomsampleapproach}
+The random sample approach algorithms consist of two steps. Firstly, they sample points until the area has been covered. Secondly, they find a continuous path that connects these points in a desirable way \cite{mattiassurvey}. In the literature studies the random sample approach seems to be applied on applications where a robot has a view port that should cover the desired area \cite{844726} \cite{Gonzalez} \cite{6386126} \cite{3drandomsample}. However, if the view port is set to the sweeping robot's footprint, the same algorithms should be possible to apply on cleaning applications.
+
+One approach to solve the first step is to sample a random uncovered point and then add the point nearby, which covers most uncovered area, to a list of goals \cite{844726}. Another approach is to sample positions randomly until the area gets covered and then find the best positions by picking the ones that covers most area one by one from the list of all sampled positions. Instead of sampling uniformly at random, a more efficient approach is to first sample points to cover the boundaries of the area, and then sample the rest \cite{Gonzalez}. 
+
+The second problem is often a variant of the Travelling Salesman Problem (TSP), which is a well studied problem with many different solutions. In \cite{844726} the points are connected using a shortest path graph and an approximation to the TSP. A chained Lin-Kernighan TSP algorithm \cite{applegate2000chained} was used in \cite{6386126} to connect the points and a bi-directional rapidly-exploring random tree (RRT)  algorithm \cite{rrt} was applied between the points to avoid obstacles. Since these generated paths are rarely smooth, Englot and Hover proposed an algorithm in \cite{3drandomsample} to smoothen the generated path using a variant of RRT.
+
+\section{3D approaches for Coverage Path Planning}
+
+Covering an uneven terrain based on a 2D algorithm with a back-and-forth approach leads to skipped spots and overlaps. When the robot is tilting it's range and the localization could be affected. To solve this problem, a Side-to-side 3D CPP approach was proposed by Hameed, Cour-Harbo and Olsen. By using Digital Elevation Model (DEM) of the terrain, cylinders representing the paths can be placed side by side across the terrain to take the height differences in concern when setting the distance between the paths. The cylinder approach can also be used to find the angle that gives the best coverage efficiency. \cite{HAMEED201636}
+
+Another similar 3D approach, which can be applied to any back-and-forth CPP algorithm as well, is to use the DEM to find the angle that minimizes the energy consumption. It can be done by calculating the power needed to execute every path with regard to the height differences for different angles. \cite{IntelligentHameed}
+
+Just like the two mentioned approaches, the approach in \cite{juntangarablefarming} is originally made for agricultural applications as well. It also uses DEMs and creates a plan with side-by-side paths across the area. However, in this approach, the area is first decomposed into subregions based on the slope steepness. In each subregion, an optimal "seed curve" is found by finding a curve that minimizes the cost function. A "seed curve" could be an edge segment or a contour line, which unlike the other approaches does not have to be straight line. The coverage path plan is created by making subsequent paths side-by-side with an offset from the "seed curve" until the area is covered.
+
+The literature of the grid search algorithms in \ref{rel_work_graph_search} did not mention that they could be used in 3D. However, since the paths are dynamically constructed based on neighbour cells and A* can be used in 3D as well, it should be possible to apply them on non-planar surfaces as well.
+
+An advantage of the random sampling approaches mentioned in \ref{rel_work_randomsampleapproach} is that they can be used in 2D and 3D. They works good for handling complex structures, but lacks the desirable regularity compared to other methods. One way of solving this issue is to make the algorithm two-phased. In the first phase, waypoints on simple planar surfaces are structured in a grid and covered using a back-an-forth strategy. In the second phase, all points that has not been covered are covered using random sampling. \cite{6386126}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% lorem.tex ends here
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "demothesis"
+%%% End: 
