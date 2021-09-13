@@ -217,10 +217,12 @@
 		\begin{itemize}
 			\item $w=0$, if the edge is between the start and end node of the same path in $S$.
 			\item Otherwise, distance based  according to equation 
-			\begin{equation}
+			\begin{align}
 			\label{eq:distanebased}
-			w = w_\text{offset} + | s_A(x,y) - s_B(x,y) | + K \cdot | s_A(z) - s_B(z) |
-			\end{equation}
+			w = &w_\text{offset} + \\
+			& | s_A(x,y) - s_B(x,y) | + \nonumber\\
+			&K | s_A(z) - s_B(z) |\nonumber
+			\end{align}
 			where $s_A$ and $s_B$ are the position of the two nodes, $w_\text{offset}$ is a large number and $K$ is coefficient bigger than 1.
 		\end{itemize}
 		
@@ -271,10 +273,81 @@
 	%\end{figure}
 	%\newpage
 	
+
+
+%\begin{algorithm}
+%	\SetAlgoLined
+%	\KwData{Starting position $p_s$, Coverage percentage goals $C_1$ and $C_2$}
+%	\KwResult{Path $W$ to cover the area.}
+%	
+%	\textup{\textbf{return $W$}}
+%	\caption{Sample Based BA* and Inward Spiral with Traveling Salesman.}
+%	\label{alg:myalgorithm}
+%\end{algorithm}
+	
 	\begin{algorithm}
 		\SetAlgoLined
 		\KwData{Starting position $p_s$, Coverage percentage goals $C_1$ and $C_2$}
 		\KwResult{Path $W$ to cover the area.}
+		%$S = \emptyset$\\
+		$S_\text{BA*} \gets \text{Sample BA* (Algorithm \ref{alg:myalgorithm_sample_BAstar})}$  \\
+		$S_\text{IS} \gets \text{Sample Inward Spiral (Algorithm \ref{alg:myalgorithm_sample_Inward_Spiral})}$  \\
+		$S \gets S_\text{BA*} \cup S_\text{IS}$\\
+%		\While{\textup{Coverage $C_1$ or iteration $N^{iter}_{max}$ has not been reached}}{
+%			$p_r$ = \textup{random uncovered point}\\
+%			$S_{BA*} = \emptyset$\\
+%			\For{\textup{angle $\phi \in [0,1, ..., N_{\phi}] \cdot 2\pi/N_{\phi} $ }}{
+%				\textup{Set $W_{BA*} \rightarrow$ Generated BA* path with north being towards angle $\phi$ starting at $p_r$}\\
+%				$S_{BA*} = S_{BA*} \cup W_{BA*}$\\
+%			}
+%			$W_{best}$ = \textup{Path $W_{BA*}$ in $S_{BA*}$ with the highest coverage} \\
+%			\If{\textup{Coverage of $W_{best} > C_{min}$}}{
+%				$S = S \cup W_{best}$  \\
+%			}
+%		}
+%		\While{\textup{Coverage $C_2$ has not been reached}}{
+%			$p_r$ = \textup{random uncovered point}\\
+%			\textup{Set $W_{Spiral} \rightarrow$ Generated Inward Spiral path with starting at $p_r$}\\
+%			\If{\textup{length of $W_{Spiral} > N_{min}$}}{
+%				$S = S \cup W_{Spiral}$  \\
+%			}
+%		}
+		$T \gets$ \textup{Empty graph tree}\\
+		\For{\textup{path $W_i$ in $S$}}{
+			\textup{Add start and end point of $W_i$ as nodes in $T$.}
+		}
+		$W_\text{TSP} \gets$ \textup{Cheapest route to visit all nodes in $T$}\\
+		$p_{curr} \gets p_s$ \\
+		$S_\text{TSP} \gets \emptyset$ \\
+		\For{\textup{node $p_i$ in $W_\text{TSP}$}}{
+			\If{$p_{i} = p_{curr}$}{
+				\textup{\textbf{continue}}
+			}
+			\eIf{\textup{$p_i$ is a start node}}{
+				$W_i \gets $\textup{Path in $S$ with $p_i$ as start node} \\
+			}{
+				$W_i \gets $\textup{Reversed path in $S$ with $p_i$ as end node} \\
+			}
+			$S_\text{TSP}.\texttt{push\_back}(W_i)$ \\
+			$p_{curr} \gets \text{Last point in }W_i$ \\
+		}
+		$W = \emptyset$ \\
+		$p_{curr} \gets p_s$ \\
+		\For{\textup{path $W_i$ in $S_\text{TSP}$}}{
+			$W_{A*} \gets$ Shortest path from $p_{curr}$ to the start point of $W_i$. \\
+			$W \gets W \cup {W_{A*}, W_i}$ \\
+			$p_{curr} \gets \text{Last point in }W_i$ \\
+		}
+		\textup{\textbf{return $W$}}
+		\caption{Sample Based BA* and Inward Spiral with Traveling Salesman.}
+		\label{alg:myalgorithm}
+	\end{algorithm}
+
+
+	\begin{algorithm}
+		\SetAlgoLined
+		\KwData{Coverage percentage goals $C_1$}
+		\KwResult{Set of paths $S$ covering local regions.}
 		$S = \emptyset$\\
 		\While{\textup{Coverage $C_1$ or iteration $N^{iter}_{max}$ has not been reached}}{
 			$p_r$ = \textup{random uncovered point}\\
@@ -288,6 +361,16 @@
 				$S = S \cup W_{best}$  \\
 			}
 		}
+		\textup{\textbf{return $S$}}
+		\caption{Sample BA*}
+		\label{alg:myalgorithm_sample_BAstar}
+	\end{algorithm}
+	
+	\begin{algorithm}
+		\SetAlgoLined
+		\KwData{Coverage percentage goals $C_2$}
+		\KwResult{Set of paths $S$ covering local regions.}
+		$S = \emptyset$\\
 		\While{\textup{Coverage $C_2$ has not been reached}}{
 			$p_r$ = \textup{random uncovered point}\\
 			\textup{Set $W_{Spiral} \rightarrow$ Generated Inward Spiral path with starting at $p_r$}\\
@@ -295,35 +378,9 @@
 				$S = S \cup W_{Spiral}$  \\
 			}
 		}
-		$T$ = \textup{Empty graph tree}\\
-		\For{\textup{path $W_i$ in $S$}}{
-			\textup{Add start and end point of $W_i$ as nodes in $T$.}
-		}
-		$W_\text{TSP}$ = \textup{Cheapest route to visit all nodes in $T$}\\
-		\textup{Set $p_{curr} \rightarrow p_s$} \\
-		$S_\text{TSP}$ = $\emptyset$ \\
-		\For{\textup{node $p_i$ in $W_\text{TSP}$}}{
-			\If{\textup{$p_{i}$ is $p_{curr}$}}{
-				\textup{\textbf{continue}}
-			}
-			\eIf{\textup{$p_i$ is a start node}}{
-				$W_i$ = \textup{Path in $S$ with $p_i$ as start node} \\
-			}{
-				$W_i$ = \textup{Reversed path in $S$ with $p_i$ as end node} \\
-			}
-			$S_\text{TSP}.\texttt{push\_back}(W_i)$ \\
-			\textup{Set $p_{curr} \rightarrow$ Last point in $W_i$} \\
-		}
-		$W = \emptyset$ \\
-		\textup{Set $p_{curr} \rightarrow p_s$} \\
-		\For{\textup{path $W_i$ in $S_\text{TSP}$}}{
-			$W_{A*}$ = Shortest path from $p_{curr}$ to the start point of $W_i$. \\
-			$W = W \cup {W_{A*}, W_i}$ \\
-			\textup{Set $p_{curr} \rightarrow$ Last point in $W_i$} \\
-		}
-		\textup{\textbf{return $W$}}
-		\caption{Sample Based BA* and Inward Spiral with Traveling Salesman.}
-		\label{alg:myalgorithm}
+		\textup{\textbf{return $S$}}
+		\caption{Sample Inward Spiral}
+		\label{alg:myalgorithm_sample_Inward_Spiral}
 	\end{algorithm}
 
 	\section{Autonomous Road Sweeping}
@@ -387,7 +444,7 @@
 	A 3D point cloud of the target environment is available for offline CPP. In some cases there are stationary sensors, ground or areal 3D exploration has been performed earlier by other robots or the sweeper robot itself has previously scanned the environment. Local difference between the collected point cloud and what is observed when executing the coverage path is assumed to be neglectable due to the large scales involved. Any added locally-obstructive obstacles will in most cases have a minor effect on the overall cost of the coverage path.
 	
 	Given a point cloud and a starting point, traversible and coverable points are classified and collected using terrain assessment (\ref{sec:terrain-assessment}).\\
-	\textbf{TODO}: Applying CPP algorithm. Domain adaptation with Parameter optimization.. Meta-algorithm?\\
+	\textbf{TODO}: Applying CPP algorithm. Domain adaptation with Parameter optimization.. Ok to use a lot of processing power (e.g. data center)..  Meta-algorithm?\\
 	The resulting path is executed by a motion planner capable of collision avoidance \cite{krusi2017driving}. If the environment contains dynamic obstacles then a safe motion planner which can deal with dynamic obstacles is used \cite{andersson2018receding}.
 	
 	Due to the environment having complex border geometry is unreasonable to expect 100\% coverage of the actual coverable area. A planar or voxel-discretization approximation of only coverable cells would yield CCP solutions that are 100\% in the representation, but not necessarily to the real coverable geometry. As long as all traversible points reach 100\% coverage then it is acceptable that the coverage for coverable points to only get close to (but not reaching) 100\%.
