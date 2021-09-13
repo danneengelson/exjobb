@@ -89,16 +89,6 @@
 	Real 3D environments are captured using LIDAR or 3D-sensors as point clouds. Further discretization can be made, for example using Octomap \cite{octomap}, but there are several benefits with working directly on a point cloud. Good coverage can be achieved while avoiding an intractably high voxel resolution, given that the point cloud distribution is fairly even over surfaces and that the point density is kept down to manageable levels. Furthermore, while planar or voxel-based surface approximations can be efficient representations, motion planning on such approximations may lead to unfeasible plans. A plan that seemed to be the shortest of all explored alternatives can be impossible to follow, lead to unsafe execution or be worse (e.g. take longer to follow) than other plans which seem worse during planning \cite{krusi2017driving}.
 	%TODO: Also, motion planning on point clouds: \cite{krusi2017driving}. They have motivations, eh?
 	
-	The task investigated in this paper is that of CPP for autonomous road sweeping, where the input is a point cloud and the output is a collision free path with highest possible coverage while minimizing path length and total rotation.
-	%TODO (related work?): Previous work \cite{bormann2018indoor} (and their previous work) map indoor environment and has pipeline for automatic segmentation of map into single rooms and TSP for efficient visitation between rooms.
-	
-	The main contributions of this paper are:
-	\begin{itemize}
-		\item A benchmark suite\footnote{Code and benchmark suite will be made publicly available upon paper acceptance.} consisting of three large-scale urban environments as point clouds, with and without labeled points. They span a variety of multi-floor and complex geometry, representative of outdoor road sweeping tasks under difficult and varying real-world conditions.
-		\item Evaluation of prominent CPP algorithms on the urban outdoor CPP task.
-		\item A proposed CPP algorithm that out-performs state-of-the-art CPP algorithms at this task.
-		\item Parameter optimization of CPP algorithms for automatic domain adaptation, for evaluation and as part of an enhanced offline meta-CPP algorithm.
-	\end{itemize}
 	
 	%TODO: Right column
 	\begin{figure}[t]
@@ -115,14 +105,17 @@
 		\label{fig:example}
 	\end{figure}
 	
-	The outline is as follows. In section \ref{sec:problem} the problem is formally summarized, in section \ref{sec:related-work} related work is discussed and relevant background material is presented in \ref{sec:background}. Section \ref{sec:terrain-assessment} describe how 3D point clouds are analyzed to determine the sets of points traversable and coverable by the robot. The proposed CPP algorithm is detailed in section \ref{sec:proposed-method}, and the benchmark suite including, three 3D point clouds representative for the urban road sweeping task, is presented in \ref{sec:scenario-environment}. Section \ref{sec:evaluation} contains the evaluation of CPP algorithms on the benchmark and section \ref{sec:conclusions} concludes the paper.
-	
-	%TODO: Move offline argumentation to "Scenario"-section?
-	Stoff:
+	The task investigated in this paper is that of CPP for autonomous road sweeping (Figure \ref{fig:example}), where the input is a point cloud and the output is a collision free path with highest possible coverage while minimizing path length and total rotation.
+	%TODO (related work?): Previous work \cite{bormann2018indoor} (and their previous work) map indoor environment and has pipeline for automatic segmentation of map into single rooms and TSP for efficient visitation between rooms.	
+	The main contributions of this paper are:
 	\begin{itemize}
-		\item Offline coverage path planning (Map expected to be available: from stationary sensors, 3D exploration (e.g. areal) or from previous/initial scan. Still very difficult, despite offline. Can be adjusted locally during execution if necessary.)
-		\item Complex environments. Outdoor. Hard to guarantee 100\% coverage..? It is in the point-cloud case. Any planar/grid/voxel approximation that we can achieved 100\% coverage in will still (as an approximation) not cover 100\% of coverable space in the point cloud...?
+		\item A benchmark suite\footnote{Code and benchmark suite will be made publicly available upon paper acceptance.} consisting of three large-scale urban environments as point clouds, with and without labeled points. They span a variety of multi-floor and complex geometry, representative of outdoor road sweeping tasks under difficult and varying real-world conditions.
+		\item Evaluation of prominent CPP algorithms on the urban outdoor CPP task.
+		\item A proposed CPP algorithm that out-performs state-of-the-art CPP algorithms at this task.
+		\item Parameter optimization of CPP algorithms for automatic domain adaptation, for evaluation and as part of an enhanced offline meta-CPP algorithm.
 	\end{itemize}
+	
+	The outline is as follows. In section \ref{sec:problem} the problem is formally summarized, in section \ref{sec:related-work} related work is discussed and relevant background material is presented in \ref{sec:background}. Section \ref{sec:terrain-assessment} describe how 3D point clouds are analyzed to determine the sets of points traversable and coverable by the robot. The proposed CPP algorithm is detailed in section \ref{sec:proposed-method}, and the benchmark suite including, three 3D point clouds representative for the urban road sweeping task, is presented in \ref{sec:scenario-environment}. Section \ref{sec:evaluation} contains the evaluation of CPP algorithms on the benchmark and section \ref{sec:conclusions} concludes the paper.
 	
 	\section{Problem Formulation}
 	\label{sec:problem}
