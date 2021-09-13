@@ -78,27 +78,17 @@
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	\section{INTRODUCTION}
 	Enterprise and household robots routinely perform simple service tasks, with a demand for better performance, less maintenance and a wider set of tasks growing steadily \cite{frey2017future}. Many of the most well-recognized automated service tasks today such as \emph{lawn moving}, \emph{vacuuming} and \emph{mopping} are powered by algorithms performing \emph{Coverage Path Planning} (CPP) \cite{galceran2013survey}. The CPP task is to generate a path that covers a map while avoiding obstacles. Steady progress has been made both regarding faster planners which generates better (e.g. short) paths and wider applicability \cite{bormann2018indoor}. 
-	CPP can be divided into two types, the \emph{Sensor Coverage Problem} and the \emph{Footprint Coverage Problem} \cite{bormann2018indoor}. Examples of the former is \emph{3D exploration} \cite{schmid2020efficient}, where a sensor has to be placed at sufficient poses as to fully capture a map. Examples of the latter is \emph{floor cleaning} \cite{bormann2015new}, where it is the robot, or its actuator, that has too be placed to cover the entire map. The Footprint Coverage Problem type of CPP is the focus here.
+	CPP can be divided into two types, the \emph{Sensor Coverage Problem} and the \emph{Footprint Coverage Problem} \cite{bormann2018indoor}. Examples of the former is \emph{3D exploration} \cite{schmid2020efficient}, where a sensor has to be placed at sufficient poses as to fully capture a map. Examples of the latter is \emph{floor cleaning} \cite{bormann2015new}, where it is the robot, or its actuator, that has to be placed to cover the entire map. The Footprint Coverage Problem type of CPP is the focus here.
 	
 	The CPP problem can be solved using A* search but it is intractable to solve to optimum for even small toy problems \cite{dogru2017based}. The reason for this is that CPP is NP-hard \cite{arkin2000approximation} and therefore necessitate approximate or heuristic algorithms for solving CPP problems in practice. Algorithms have been developed that are tailored to specific application contexts, leveraging the specific circumstances such as flat surfaces on single floors or rigid shapes and small scales permitting efficient use of grid representations. These are common characteristics of most indoor environment and outdoor lawns.
 	
 	%TODO? Previous work has considered large-scale but "simple" world. Or small-scale cluttered worlds. Or indoor worlds easily divided into rooms or rectangular regions.
 	
-	In this paper we consider offline CPP in the context of real-world urban environments. Such outdoor environments are characterized by a combination of large scales and complex surface geometry, with challenging aspects including non-flat surfaces, being partially cluttered and possibly multi-floor. A natural division between distinct rooms or floors are lacking, in contrast with general indoor environments studied in most of the literature \cite{galceran2013survey,bormann2018indoor}. The surface geometry also differs from the characteristic regular straight lines and rectangular rooms of the indoor setting \cite{bormann2018indoor}, and of the non-cluttered, rigid or smooth geometry of outdoor setting in agriculture such as croplands \cite{oksanen2009coverage,hameed2016side} and customary lawns \cite{einecke2018boundary}. 
+	In this paper we consider offline CPP in the context of real-world \emph{urban environments}. Such outdoor environments are characterized by a combination of large scales and complex surface geometry, with challenging aspects including non-flat surfaces, being partially cluttered and possibly multi-floor. A natural division between distinct rooms or floors are lacking, in contrast with general indoor environments studied in most of the literature \cite{galceran2013survey,bormann2018indoor}. The surface geometry also differs from the characteristic regular straight lines and rectangular rooms of the indoor setting \cite{bormann2018indoor}, and of the non-cluttered, rigid or smooth geometry of outdoor setting in agriculture such as croplands \cite{oksanen2009coverage,hameed2016side} and customary lawns \cite{einecke2018boundary}. 
 	
 	Real 3D environments are captured using LIDAR or 3D-sensors as point clouds. Further discretization can be made, for example using Octomap \cite{octomap}, but there are several benefits with working directly on a point cloud. Good coverage can be achieved while avoiding an intractably high voxel resolution, given that the point cloud distribution is fairly even over surfaces and that the point density is kept down to manageable levels. Furthermore, while planar or voxel-based surface approximations can be efficient representations, motion planning on such approximations may lead to unfeasible plans. A plan that seemed to be the shortest of all explored alternatives can be impossible to follow, lead to unsafe execution or be worse (e.g. take longer to follow) than other plans which seem worse during planning \cite{krusi2017driving}.
 	%TODO: Also, motion planning on point clouds: \cite{krusi2017driving}. They have motivations, eh?
 	
-	The task investigated in this paper is that of CPP for autonomous road sweeping, where the input is a point cloud and the output is a collision free path with highest possible coverage while minimizing path length and total rotation.
-	%TODO (related work?): Previous work \cite{bormann2018indoor} (and their previous work) map indoor environment and has pipeline for automatic segmentation of map into single rooms and TSP for efficient visitation between rooms.
-	
-	The main contributions of this paper are:
-	\begin{itemize}
-		\item A benchmark suite\footnote{Code and benchmark suite will be made publicly available upon paper acceptance.} consisting of three large-scale urban environments as point clouds, with and without labeled points. They span a variety of multi-floor and complex geometry, representative of outdoor road sweeping tasks under difficult and varying real-world conditions.
-		\item Evaluation of prominent CPP algorithms on the urban outdoor CPP task.
-		\item A proposed CPP algorithm that out-performs state-of-the-art CPP algorithms at this task.
-		\item Parameter optimization of CPP algorithms for automatic domain adaptation, for evaluation and as part of an enhanced offline meta-CPP algorithm.
-	\end{itemize}
 	
 	%TODO: Right column
 	\begin{figure}[t]
@@ -115,16 +105,17 @@
 		\label{fig:example}
 	\end{figure}
 	
-	The outline is as follows. In section \ref{sec:problem} the problem is formally summarized, in section \ref{sec:related-work} related work is discussed and relevant background material is presented in \ref{sec:background}. Section \ref{sec:terrain-assessment} describe how 3D point clouds are analyzed to determine the sets of points traversable and coverable by the robot. The proposed CPP algorithm is detailed in section \ref{sec:proposed-method}, and evaluated together with other suitable CPP algorithms on three 3D point clouds representative for the urban road sweeping task in section \ref{sec:evaluation}. Finally, conclusions and future work are discussed in section \ref{sec:conclusions}.
-	
-	Stoff:
+	The task investigated in this paper is that of CPP for autonomous road sweeping (Figure \ref{fig:example}), where the input is a point cloud and the output is a collision free path with highest possible coverage while minimizing path length and total rotation.
+	%TODO (related work?): Previous work \cite{bormann2018indoor} (and their previous work) map indoor environment and has pipeline for automatic segmentation of map into single rooms and TSP for efficient visitation between rooms.	
+	The main contributions of this paper are:
 	\begin{itemize}
-		\item Footprint Coverage Problem the focus here, not the Sensor Coverage Problem (like in 3D exploration) \cite{bormann2018indoor}.
-		\item Offline coverage path planning (Map expected to be available: from stationary sensors, 3D exploration (e.g. areal) or from previous/initial scan. Still very difficult, despite offline. Can be adjusted locally during execution if necessary.)
-		\item Large maps not easy to divide into rooms
-		\item Complex environments. Outdoor. Hard to guarantee 100\% coverage..?
-		\item Point cloud..
+		\item A benchmark suite\footnote{Code and benchmark suite will be made publicly available upon paper acceptance.} consisting of three large-scale urban environments as point clouds, with and without labeled points. They span a variety of multi-floor and complex geometry, representative of outdoor road sweeping tasks under difficult and varying real-world conditions.
+		\item Evaluation of prominent CPP algorithms on the urban outdoor CPP task.
+		\item A proposed CPP algorithm that out-performs state-of-the-art CPP algorithms at this task.
+		\item Parameter optimization of CPP algorithms for automatic domain adaptation, for evaluation and as part of an enhanced offline meta-CPP algorithm.
 	\end{itemize}
+	
+	The outline is as follows. In section \ref{sec:problem} the problem is formally summarized, in section \ref{sec:related-work} related work is discussed and relevant background material is presented in \ref{sec:background}. Section \ref{sec:terrain-assessment} describe how 3D point clouds are analyzed to determine the sets of points traversable and coverable by the robot. The proposed CPP algorithm is detailed in section \ref{sec:proposed-method}, and the benchmark suite including, three 3D point clouds representative for the urban road sweeping task, is presented in \ref{sec:scenario-environment}. Section \ref{sec:evaluation} contains the evaluation of CPP algorithms on the benchmark and section \ref{sec:conclusions} concludes the paper.
 	
 	\section{Problem Formulation}
 	\label{sec:problem}
@@ -226,10 +217,12 @@
 		\begin{itemize}
 			\item $w=0$, if the edge is between the start and end node of the same path in $S$.
 			\item Otherwise, distance based  according to equation 
-			\begin{equation}
+			\begin{align}
 			\label{eq:distanebased}
-			w = w_\text{offset} + | s_A(x,y) - s_B(x,y) | + K \cdot | s_A(z) - s_B(z) |
-			\end{equation}
+			w = &w_\text{offset} + \\
+			& | s_A(x,y) - s_B(x,y) | + \nonumber\\
+			&K | s_A(z) - s_B(z) |\nonumber
+			\end{align}
 			where $s_A$ and $s_B$ are the position of the two nodes, $w_\text{offset}$ is a large number and $K$ is coefficient bigger than 1.
 		\end{itemize}
 		
@@ -280,10 +273,81 @@
 	%\end{figure}
 	%\newpage
 	
+
+
+%\begin{algorithm}
+%	\SetAlgoLined
+%	\KwData{Starting position $p_s$, Coverage percentage goals $C_1$ and $C_2$}
+%	\KwResult{Path $W$ to cover the area.}
+%	
+%	\textup{\textbf{return $W$}}
+%	\caption{Sample Based BA* and Inward Spiral with Traveling Salesman.}
+%	\label{alg:myalgorithm}
+%\end{algorithm}
+	
 	\begin{algorithm}
 		\SetAlgoLined
 		\KwData{Starting position $p_s$, Coverage percentage goals $C_1$ and $C_2$}
 		\KwResult{Path $W$ to cover the area.}
+		%$S = \emptyset$\\
+		$S_\text{BA*} \gets \text{Sample BA* (Algorithm \ref{alg:myalgorithm_sample_BAstar})}$  \\
+		$S_\text{IS} \gets \text{Sample Inward Spiral (Algorithm \ref{alg:myalgorithm_sample_Inward_Spiral})}$  \\
+		$S \gets S_\text{BA*} \cup S_\text{IS}$\\
+%		\While{\textup{Coverage $C_1$ or iteration $N^{iter}_{max}$ has not been reached}}{
+%			$p_r$ = \textup{random uncovered point}\\
+%			$S_{BA*} = \emptyset$\\
+%			\For{\textup{angle $\phi \in [0,1, ..., N_{\phi}] \cdot 2\pi/N_{\phi} $ }}{
+%				\textup{Set $W_{BA*} \rightarrow$ Generated BA* path with north being towards angle $\phi$ starting at $p_r$}\\
+%				$S_{BA*} = S_{BA*} \cup W_{BA*}$\\
+%			}
+%			$W_{best}$ = \textup{Path $W_{BA*}$ in $S_{BA*}$ with the highest coverage} \\
+%			\If{\textup{Coverage of $W_{best} > C_{min}$}}{
+%				$S = S \cup W_{best}$  \\
+%			}
+%		}
+%		\While{\textup{Coverage $C_2$ has not been reached}}{
+%			$p_r$ = \textup{random uncovered point}\\
+%			\textup{Set $W_{Spiral} \rightarrow$ Generated Inward Spiral path with starting at $p_r$}\\
+%			\If{\textup{length of $W_{Spiral} > N_{min}$}}{
+%				$S = S \cup W_{Spiral}$  \\
+%			}
+%		}
+		$T \gets$ \textup{Empty graph tree}\\
+		\For{\textup{path $W_i$ in $S$}}{
+			\textup{Add start and end point of $W_i$ as nodes in $T$.}
+		}
+		$W_\text{TSP} \gets$ \textup{Cheapest route to visit all nodes in $T$}\\
+		$p_{curr} \gets p_s$ \\
+		$S_\text{TSP} \gets \emptyset$ \\
+		\For{\textup{node $p_i$ in $W_\text{TSP}$}}{
+			\If{$p_{i} = p_{curr}$}{
+				\textup{\textbf{continue}}
+			}
+			\eIf{\textup{$p_i$ is a start node}}{
+				$W_i \gets $\textup{Path in $S$ with $p_i$ as start node} \\
+			}{
+				$W_i \gets $\textup{Reversed path in $S$ with $p_i$ as end node} \\
+			}
+			$S_\text{TSP}.\texttt{push\_back}(W_i)$ \\
+			$p_{curr} \gets \text{Last point in }W_i$ \\
+		}
+		$W = \emptyset$ \\
+		$p_{curr} \gets p_s$ \\
+		\For{\textup{path $W_i$ in $S_\text{TSP}$}}{
+			$W_{A*} \gets$ Shortest path from $p_{curr}$ to the start point of $W_i$. \\
+			$W \gets W \cup {W_{A*}, W_i}$ \\
+			$p_{curr} \gets \text{Last point in }W_i$ \\
+		}
+		\textup{\textbf{return $W$}}
+		\caption{Sample Based BA* and Inward Spiral with Traveling Salesman.}
+		\label{alg:myalgorithm}
+	\end{algorithm}
+
+
+	\begin{algorithm}
+		\SetAlgoLined
+		\KwData{Coverage percentage goals $C_1$}
+		\KwResult{Set of paths $S$ covering local regions.}
 		$S = \emptyset$\\
 		\While{\textup{Coverage $C_1$ or iteration $N^{iter}_{max}$ has not been reached}}{
 			$p_r$ = \textup{random uncovered point}\\
@@ -297,6 +361,16 @@
 				$S = S \cup W_{best}$  \\
 			}
 		}
+		\textup{\textbf{return $S$}}
+		\caption{Sample BA*}
+		\label{alg:myalgorithm_sample_BAstar}
+	\end{algorithm}
+	
+	\begin{algorithm}
+		\SetAlgoLined
+		\KwData{Coverage percentage goals $C_2$}
+		\KwResult{Set of paths $S$ covering local regions.}
+		$S = \emptyset$\\
 		\While{\textup{Coverage $C_2$ has not been reached}}{
 			$p_r$ = \textup{random uncovered point}\\
 			\textup{Set $W_{Spiral} \rightarrow$ Generated Inward Spiral path with starting at $p_r$}\\
@@ -304,52 +378,33 @@
 				$S = S \cup W_{Spiral}$  \\
 			}
 		}
-		$T$ = \textup{Empty graph tree}\\
-		\For{\textup{path $W_i$ in $S$}}{
-			\textup{Add start and end point of $W_i$ as nodes in $T$.}
-		}
-		$W_\text{TSP}$ = \textup{Cheapest route to visit all nodes in $T$}\\
-		\textup{Set $p_{curr} \rightarrow p_s$} \\
-		$S_\text{TSP}$ = $\emptyset$ \\
-		\For{\textup{node $p_i$ in $W_\text{TSP}$}}{
-			\If{\textup{$p_{i}$ is $p_{curr}$}}{
-				\textup{\textbf{continue}}
-			}
-			\eIf{\textup{$p_i$ is a start node}}{
-				$W_i$ = \textup{Path in $S$ with $p_i$ as start node} \\
-			}{
-				$W_i$ = \textup{Reversed path in $S$ with $p_i$ as end node} \\
-			}
-			$S_\text{TSP}.\texttt{push\_back}(W_i)$ \\
-			\textup{Set $p_{curr} \rightarrow$ Last point in $W_i$} \\
-		}
-		$W = \emptyset$ \\
-		\textup{Set $p_{curr} \rightarrow p_s$} \\
-		\For{\textup{path $W_i$ in $S_\text{TSP}$}}{
-			$W_{A*}$ = Shortest path from $p_{curr}$ to the start point of $W_i$. \\
-			$W = W \cup {W_{A*}, W_i}$ \\
-			\textup{Set $p_{curr} \rightarrow$ Last point in $W_i$} \\
-		}
-		\textup{\textbf{return $W$}}
-		\caption{Sample Based BA* and Inward Spiral with Traveling Salesman.}
-		\label{alg:myalgorithm}
+		\textup{\textbf{return $S$}}
+		\caption{Sample Inward Spiral}
+		\label{alg:myalgorithm_sample_Inward_Spiral}
 	\end{algorithm}
+
+	\section{Autonomous Road Sweeping}
+	\label{sec:scenario-environment}
 	
-	\section{Evaluation}
-	\label{sec:evaluation}
-	We use the point cloud of a two-storey garage (Figure \ref{fig:example}, Top), a subset of the \textit{urban05} point cloud from the Complex Urban Dataset \cite{jjeong-2019-ijrr}. It contains $2.6$M points and has a total traversable area for our robot of 1678m$^2$.
+	\begin{itemize}
+		\item Small intro (what is the task and what is specific about it in relation to other stuff?)
+	\end{itemize}
 	
-	The CPP scenarios consists of a sweeper robot (Figure \ref{fig:robot}) of size XYZ which is scheduled to clean the clear road area in a Garage (Figure \ref{fig:map_garage}), Highway (Figure \ref{fig:map_highway}) and Crossing (Figure \ref{fig:map_crossing}). The robot is assumed to travel at a slow enough speed to be safely avoidable by people (beside other safety measures in place). A comfortable walking speed is between 1.2 and 1.5 m/s for adults. The robot is assumed to travel a a speed of 1m/s. The robot actuators are most effective when the robot is traveling at a sufficiently slow speed, and more effective if the robot is driven straight than if it is rotating.
+	\subsection{3D Environment}	
+%TODO
+%	\begin{itemize}
+%		\item 3 large-scale urban environments
+%		\item Their different stats and challenges
+%		\item Figures showing the environments and possibly traversible/coverable points in them, as well as the starting point?
+%	\end{itemize}
+
+	Three urban environments (Figure \ref{fig:maps}) consists of 3D point clouds that have been carefully selected from the large Complex Urban Dataset \cite{jjeong-2019-ijrr}. These environments represent different difficult but typical urban outdoor scenes. 
 	
-	\begin{figure}
-		\centering
-		\begin{subfigure}{\columnwidth}
-			\centering
-			\includegraphics[width=\textwidth]{figures/sweeper_robot.jpg}
-		\end{subfigure}
-		\caption{The sweeper robot prototype, a modified Tandem KS 910 sweeping machine.}
-		\label{fig:robot}
-	\end{figure}
+	The \emph{Two-story Garage} environment consists of a parking lot and an underground garage right below the parking lot. The point cloud is a subset of \textit{urban05} \cite{jjeong-2019-ijrr}. The main challenges are the complex border geometry, the multi-level aspect and the transition between levels. It contains $2.6$M points and has a total traversable area for the road sweeping robot of 1678m$^2$.
+	
+	The \emph{Highway Bridge} environment...
+	
+	The \emph{City Crossing} environment...
 	
 	\begin{figure*}
 		\centering
@@ -374,6 +429,40 @@
 		\caption{Three complex outdoor environments.}
 		\label{fig:maps}
 	\end{figure*}
+	
+	\subsection{Scenario}
+% TODO
+%	\begin{itemize}
+%		\item Description of the task.
+%		\item Robot platform with dimensions and stats (it is only a prototype and not yet operational)
+%		\item Figure of the robot
+%		\item Description of the task execution
+%		\item Description of the meta-CCP algorithm
+%	\end{itemize}
+	A road sweeper robot (Figure \ref{fig:robot}) of dimension $\text{length} = 1m$, $\text{breadth} = 0.75m$ and $\text{height} = 0.8m$ is tasked with cleaning the ground surface in an urban environment. The robot is assumed to travel at a slow enough speed to be safely avoidable by people (beside other safety measures in place). A comfortable walking speed is between 1.2 and 1.5 m/s for adults. The robot is assumed to travel a a speed of 1m/s. The robot actuators are most effective when the robot is traveling at a sufficiently slow speed, and more effective if the robot is driven straight than if it is rotating.
+	
+	A 3D point cloud of the target environment is available for offline CPP. In some cases there are stationary sensors, ground or areal 3D exploration has been performed earlier by other robots or the sweeper robot itself has previously scanned the environment. Local difference between the collected point cloud and what is observed when executing the coverage path is assumed to be neglectable due to the large scales involved. Any added locally-obstructive obstacles will in most cases have a minor effect on the overall cost of the coverage path.
+	
+	Given a point cloud and a starting point, traversible and coverable points are classified and collected using terrain assessment (\ref{sec:terrain-assessment}).\\
+	\textbf{TODO}: Applying CPP algorithm. Domain adaptation with Parameter optimization.. Ok to use a lot of processing power (e.g. data center)..  Meta-algorithm?\\
+	The resulting path is executed by a motion planner capable of collision avoidance \cite{krusi2017driving}. If the environment contains dynamic obstacles then a safe motion planner which can deal with dynamic obstacles is used \cite{andersson2018receding}.
+	
+	Due to the environment having complex border geometry is unreasonable to expect 100\% coverage of the actual coverable area. A planar or voxel-discretization approximation of only coverable cells would yield CCP solutions that are 100\% in the representation, but not necessarily to the real coverable geometry. As long as all traversible points reach 100\% coverage then it is acceptable that the coverage for coverable points to only get close to (but not reaching) 100\%.
+			
+	\begin{figure}
+		\centering
+		\begin{subfigure}{\columnwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/sweeper_robot.jpg}
+		\end{subfigure}
+		\caption{The sweeper robot prototype, a modified Tandem KS 910 sweeping machine. }
+		\label{fig:robot}
+	\end{figure}
+	
+	
+	
+	\section{Evaluation}
+	\label{sec:evaluation}
 	
 	Parameters for the Motion Planner are presented in Table \ref{tab:mp_parameters}.
 	\begin{table}[h!]
