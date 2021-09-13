@@ -77,7 +77,7 @@
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	\section{INTRODUCTION}
-	Today enterprise and household robots routinely perform simple service tasks, with a demand for better performance, less maintenance and a wider set of tasks growing steadily \cite{frey2017future}. Many of the most well-recognized automated service tasks today such as lawn moving, vacuuming and mopping are powered by algorithms performing Coverage Path Planning (CPP) \cite{galceran2013survey}. The CPP task is to generate a path that covers a map while avoiding obstacles. Steady progress has been made both regarding faster planners which generates better (e.g. short) paths and wider applicability \cite{bormann2018indoor}.
+	Enterprise and household robots routinely perform simple service tasks, with a demand for better performance, less maintenance and a wider set of tasks growing steadily \cite{frey2017future}. Many of the most well-recognized automated service tasks today such as lawn moving, vacuuming and mopping are powered by algorithms performing Coverage Path Planning (CPP) \cite{galceran2013survey}. The CPP task is to generate a path that covers a map while avoiding obstacles. Steady progress has been made both regarding faster planners which generates better (e.g. short) paths and wider applicability \cite{bormann2018indoor}. Two specializations of CPP are the Footprint Coverage Problem (e.g. vaccuming ) here, not the Sensor Coverage Problem (like in 3D exploration) \cite{bormann2018indoor}
 	%TODO: Floor cleaning in homes and offices \cite{bormann2015new}. 
 	%TODO: CPP comprise both the Footprint Coverage Problem (the focus here), and the Sensor Coverage Problem (like in 3D exploration \cite{schmid2020efficient}) \cite{bormann2018indoor}.
 	%TODO: Exampleapplications (why is it important etc.) 
@@ -95,7 +95,7 @@
 	
 	The main contributions of this paper are:
 	\begin{itemize}
-		\item A benchmark suite\footnote{Code and benchmark suite will be made publicly available upon paper acceptance.} consisting of three large-scale urban environments as point clouds, with and without labeled points. They span a variety of multi-floor and complex geometry, representative of outdoor road sweeping tasks under varying real-world conditions.
+		\item A benchmark suite\footnote{Code and benchmark suite will be made publicly available upon paper acceptance.} consisting of three large-scale urban environments as point clouds, with and without labeled points. They span a variety of multi-floor and complex geometry, representative of outdoor road sweeping tasks under difficult and varying real-world conditions.
 		\item Evaluation of prominent CPP algorithms on the urban outdoor CPP task.
 		\item A proposed CPP algorithm that out-performs state-of-the-art CPP algorithms at this task.
 		\item Parameter optimization of CPP algorithms for automatic domain adaptation, for evaluation and as part of an enhanced offline meta-CPP algorithm.
@@ -116,7 +116,7 @@
 		\label{fig:example}
 	\end{figure}
 	
-	The outline is as follows. In section \ref{sec:problem} the problem is formally summarized, in section \ref{sec:related-work} related work is discussed and relevant background material is presented in \ref{sec:background}. Section \ref{sec:terrain-assessment} describe how 3D point clouds are analyzed to determine the sets of points traversable and coverable by the robot. The proposed CPP algorithm is detailed in section \ref{sec:proposed-method}, and evaluated together with other suitable CPP algorithms on three 3D point clouds representative for the urban road sweeping task in section \ref{sec:evaluation}. Finally, the conclusions and future work is discussed in section \ref{sec:conclusions}.
+	The outline is as follows. In section \ref{sec:problem} the problem is formally summarized, in section \ref{sec:related-work} related work is discussed and relevant background material is presented in \ref{sec:background}. Section \ref{sec:terrain-assessment} describe how 3D point clouds are analyzed to determine the sets of points traversable and coverable by the robot. The proposed CPP algorithm is detailed in section \ref{sec:proposed-method}, and evaluated together with other suitable CPP algorithms on three 3D point clouds representative for the urban road sweeping task in section \ref{sec:evaluation}. Finally, conclusions and future work are discussed in section \ref{sec:conclusions}.
 	
 	Stoff:
 	\begin{itemize}
@@ -133,9 +133,9 @@
 	Consider a robot with geometry $R\subset \mathbb{R}^3$ that can travel over a surface with a maximum height difference of $h^R_{max}$.
 	Given a bounded 3D world $\mathcal{W}\in\mathbb{R}^3$ and a starting point $x_S$, the set $\mathcal{W}_{cov}\subseteq \mathcal{W}$ contain all surface points that the are coverable by the robot. A surface point $p$ is coverable by the robot if there is a point $x\in\mathcal{W}$ for which the robot placed at $x$ cover $p$ with its geometry $R$, and if $x$ is reachable from $x_S$ for the robot without collisions.
 	
-	The Coverage Path Planning (CPP) problem is to find a path $P$ of positions $p\in P$ such that every point $p\in\mathcal{W}_{cov}$ must have been inside $R$ at least once when placing $R$ at every position in $P$. 
+	The Coverage Path Planning (CPP) problem is to find a path $P$ of states $x\in P$ such that every point $p\in\mathcal{W}_{cov}$ must have been inside $R$ at least once when placing $R$ at every position in $P$. 
 	
-	The task is to determine $\mathcal{W}_{cov}$ and a path starting in $x_S$ that let the robot coverer all coverable points $x\in\mathcal{W}_{cov}$.
+	The task is to determine $\mathcal{W}_{cov}$ and subsequent a path starting in $x_S$ that let the robot cover all coverable points $x\in\mathcal{W}_{cov}$ while minimizing the path cost.
 	
 	\section{Related Work}
 	\label{sec:related-work}
@@ -153,7 +153,7 @@
 	\section{Background}
 	\label{sec:background}
 	\begin{itemize}
-		\item BA$^*$ \cite{viet2013ba}
+		\item BA* \cite{viet2013ba}
 		\item Inward Spiral \cite{zhang2019path}
 		\item Sampling-Based Sweep Planning \cite{englot2012sampling}
 		\item TSP\dots(?)
@@ -165,7 +165,7 @@
 		\item Cover the local area using the Boustrophedon motion (BM) algorithm until a critical point is reached and no further Boustrophedon motion is possible.
 		\item Use a backtracking list to find the next starting point.
 		\item Use A* to plan a collision free path to the next starting point.
-		\item Shorten the path using the A*SPT \cite{bastar} algorithm.
+		\item Shorten the path using the A*SPT \cite{viet2013ba} algorithm.
 		\item Follow the generated path and go to step 1 to cover a new area.
 	\end{enumerate}
 	These steps are repeated until Step 2 can no longer find a new uncovered starting point.
@@ -207,41 +207,41 @@
 		\label{fig:terrainassessment}
 	\end{figure}
 	
-	\section{Proposed Method (sBA$^*$-Spiral-TSP)}
+	\section{Proposed Method (sBA*-Spiral-TSP)}
 	\label{sec:proposed-method}
-	\textit{Sample-Based BA* and Inward Spiral with Traveling Salesman} (SBA$^*$SITSP)\dots
+	\textit{Sample-Based BA* and Inward Spiral with Traveling Salesman} (SBA*SITSP)\dots
 	
-	An approach that combines the strengths of BA$^*$ \cite{viet2013ba}, Inward Spiral \cite{zhang2019path} and Sampling-Based Sweep Planning \cite{englot2012sampling}\dots
+	An approach that combines the strengths of BA* \cite{viet2013ba}, Inward Spiral \cite{zhang2019path} and Sampling-Based Sweep Planning \cite{englot2012sampling}\dots
 	
 	The idea is to cover open areas with BA* and more complex areas with Inward Spiral. This is done by covering segments of the area with BA* and Inward Spiral starting from random sampled points and then connect these segments with a TSP solver. The new algorithm, see \ref{alg:myalgorithm}, follows these steps:
 	
 	\begin{enumerate}
-		\item Use random sampling to get an unvisited $Traversable$ point $p_s$.
+		\item Use random sampling to get an unvisited \emph{Traversable} point $p_s$.
 		\item For $N_\phi$ different angles $\phi_i$, define $north$ as the angle $\phi_i$ and start covering using the BA* algorithm \cite{viet2013ba} starting from starting point $p_s$. Keep covering until the distance to the next starting point, generated by CPP Step 2, is bigger than a hand tuned threshold, $d_{max}$. See illustration in Figure \ref{fig:myalga}.
 		\item Step 2 will generate $N_\phi$ different paths from the same starting point $p_s$. Pick the path that covers the biggest area and add it to a list with paths that covers different segments, $S$.
 		\item Repeat the Step 1-3 until a pre defined coverage percentage, $C_1$ or a maximum amount of iterations $N^{iter}_{max}$ has been reached.
-		\item Use random sampling to get an unvisited $Traversable$ point $p_s$.
+		\item Use random sampling to get an unvisited \emph{Traversable} point $p_s$.
 		\item Start covering using the Inward Spiral algorithm \cite{zhang2019path} starting from starting point $p_s$, see Figure \ref{fig:myalgb}. Keep covering until the distance to the next starting point, generated by CPP Step 2, is bigger than a hand tuned threshold, $d_{max}$. Add the path to $S$.
-		\item Repeat the Step 5-6 until a pre defined coverage percentage, $C_2$ has been reached.
+		\item Repeat the Step 5-6 until a pre-defined coverage percentage, $C_2$ has been reached.
 		\item Build up a graph tree, $T$, from $S$. Only the start and end positions of the paths in $S$ are added as nodes to $T$. All nodes are connected with edges with weights set to 
 		\begin{itemize}
 			\item $w=0$, if the edge is between the start and end node of the same path in $S$.
 			\item Otherwise, distance based  according to equation 
 			\begin{equation}
 			\label{eq:distanebased}
-			w = w_{offset} + | s_A(x,y) - s_B(x,y) | + K \cdot | s_A(z) - s_B(z) |
+			w = w_\text{offset} + | s_A(x,y) - s_B(x,y) | + K \cdot | s_A(z) - s_B(z) |
 			\end{equation}
-			where $s_A$ and $s_B$ are the position of the two nodes, $w_{offset}$ is a large number and $K$ is coefficient bigger than 1.
+			where $s_A$ and $s_B$ are the position of the two nodes, $w_\text{offset}$ is a large number and $K$ is coefficient bigger than 1.
 		\end{itemize}
 		
-		The purpose of $w_{offset}$ is to make sure that the traveling salesman algorithm in the following step always chooses to connect corresponding start and end nodes. Since the environment had multiple floors extra weight is added to difference in height, since the path in most cases will be longer. This is the purpose of coefficent $K$.
-		\item Apply a traveling salesman algorithm to calculate the cheapest route, $W_{TSP}$, to visit all nodes in $T$, see Figure \ref{fig:myalgc}. An approximate local search TSP algorithm \cite{python-tsp} was used.
-		\item Walk through every node in $W_{TSP}$ and create a ordered list of paths $S_{TSP}$. For every node $s_i$,
+		The purpose of $w_\text{offset}$ is to make sure that the traveling salesman algorithm in the following step always chooses to connect corresponding start and end nodes. Since the environment had multiple floors extra weight is added to difference in height, since the path in most cases will be longer. This is the purpose of coefficent $K$.
+		\item Apply a traveling salesman algorithm to calculate the cheapest route, $W_\text{TSP}$, to visit all nodes in $T$, see Figure \ref{fig:myalgc}. An approximate local search TSP algorithm \cite{python-tsp} was used.
+		\item Walk through every node in $W_\text{TSP}$ and create a ordered list of paths $S_\text{TSP}$. For every node $s_i$,
 		\begin{itemize}
-			\item If $s_i$ is a start node, add the corresponding path in $S$ to $S_{TSP}$.
-			\item If $s_i$ is a end node, add the corresponding path, but reversed, in $S$ to $S_{TSP}$.
+			\item If $s_i$ is a start node, add the corresponding path in $S$ to $S_\text{TSP}$.
+			\item If $s_i$ is a end node, add the corresponding path, but reversed, in $S$ to $S_\text{TSP}$.
 		\end{itemize}
-		\item Create a continuous path $W$ by following the paths in $S_{TSP}$. Connect them with obstacle free smooth A* paths, as in CPP Step 3 in previous CPP implementations. See illustration in Figure \ref{fig:myalgd}.
+		\item Create a continuous path $W$ by following the paths in $S_\text{TSP}$. Connect them with obstacle free smooth A* paths, as in CPP Step 3 in previous CPP implementations. See illustration in Figure \ref{fig:myalgd}.
 	\end{enumerate}
 	
 	%\newpage
@@ -309,10 +309,10 @@
 		\For{\textup{path $W_i$ in $S$}}{
 			\textup{Add start and end point of $W_i$ as nodes in $T$.}
 		}
-		$W_{TSP}$ = \textup{Cheapest route to visit all nodes in $T$}\\
+		$W_\text{TSP}$ = \textup{Cheapest route to visit all nodes in $T$}\\
 		\textup{Set $p_{curr} \rightarrow p_s$} \\
-		$S_{TSP}$ = $\emptyset$ \\
-		\For{\textup{node $p_i$ in $W_{TSP}$}}{
+		$S_\text{TSP}$ = $\emptyset$ \\
+		\For{\textup{node $p_i$ in $W_\text{TSP}$}}{
 			\If{\textup{$p_{i}$ is $p_{curr}$}}{
 				\textup{\textbf{continue}}
 			}
@@ -321,12 +321,12 @@
 			}{
 				$W_i$ = \textup{Reversed path in $S$ with $p_i$ as end node} \\
 			}
-			$S_{TSP}.\texttt{push\_back}(W_i)$ \\
+			$S_\text{TSP}.\texttt{push\_back}(W_i)$ \\
 			\textup{Set $p_{curr} \rightarrow$ Last point in $W_i$} \\
 		}
 		$W = \emptyset$ \\
 		\textup{Set $p_{curr} \rightarrow p_s$} \\
-		\For{\textup{path $W_i$ in $S_{TSP}$}}{
+		\For{\textup{path $W_i$ in $S_\text{TSP}$}}{
 			$W_{A*}$ = Shortest path from $p_{curr}$ to the start point of $W_i$. \\
 			$W = W \cup {W_{A*}, W_i}$ \\
 			\textup{Set $p_{curr} \rightarrow$ Last point in $W_i$} \\
@@ -571,6 +571,13 @@
 	%\end{figure}
 	
 	\subsection{Coverage Path Planning}
+	
+	\begin{figure}
+		\centering
+		\includegraphics[width=\columnwidth]{figures/garage_pre_restult_coverage.png}
+		\caption{Path cost vs coverage on the Garage environment.}
+		\label{fig:result-garage-cost-coverage}
+	\end{figure}
 	
 	\begin{figure}
 		\centering
