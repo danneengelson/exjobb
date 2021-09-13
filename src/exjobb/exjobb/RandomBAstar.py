@@ -7,7 +7,7 @@ import pickle
 from exjobb.CPPSolver import CPPSolver
 from exjobb.RandomBAStarSegment import BAStarSegment
 from exjobb.RandomSpriralSegment import RandomSpiralSegment
-from exjobb.Parameters import RANDOM_BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL, RANDOM_BASTAR_MAX_ITERATIONS, RANDOM_BASTAR_NUMBER_OF_ANGLES, RANDOM_BASTAR_PART_I_COVERAGE, RANDOM_BASTAR_MIN_COVERAGE, RANDOM_BASTAR_MIN_SPIRAL_LENGTH, RANDOM_BASTAR_VARIANT_DISTANCE, RANDOM_BASTAR_VARIANT_DISTANCE_PART_II, ROBOT_SIZE
+from exjobb.Parameters import BASTAR_STEP_SIZE, BASTAR_VISITED_TRESHOLD, RANDOM_BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL, RANDOM_BASTAR_MAX_ITERATIONS, RANDOM_BASTAR_NUMBER_OF_ANGLES, RANDOM_BASTAR_PART_I_COVERAGE, RANDOM_BASTAR_MIN_COVERAGE, RANDOM_BASTAR_MIN_SPIRAL_LENGTH, RANDOM_BASTAR_VARIANT_DISTANCE, RANDOM_BASTAR_VARIANT_DISTANCE_PART_II, ROBOT_SIZE
 from exjobb.PointCloud import PointCloud
 from exjobb.Tree import Tree
 
@@ -37,6 +37,8 @@ class RandomBAstar(CPPSolver):
             self.min_spiral_length = RANDOM_BASTAR_MIN_SPIRAL_LENGTH
             self.min_bastar_coverage = RANDOM_BASTAR_MIN_COVERAGE
             self.max_iterations = RANDOM_BASTAR_MAX_ITERATIONS
+            self.step_size = BASTAR_STEP_SIZE
+            self.visited_threshold = BASTAR_VISITED_TRESHOLD
         else:
             self.max_distance = parameters["max_distance"]
             self.max_distance_part_II = parameters["max_distance_part_II"]
@@ -83,7 +85,7 @@ class RandomBAstar(CPPSolver):
             visited_waypoints = np.empty((0,3))
             coverage_part_I = 0
             #len(uncovered_points)/total_nbr_of_points > 0.05
-            while coverage_part_I < self.coverage_1 and iter <= self.max_iterations and coverage_part_I < self.coverage_2:
+            while coverage_part_I < self.coverage_1 and iter <= self.max_iterations and coverage_part_I < self.coverage_2 and not self.time_limit_reached():
                 iter += 1
                 
                 random_point = self.get_random_uncovered_point(visited_waypoints)
