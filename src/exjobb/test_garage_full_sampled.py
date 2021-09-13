@@ -138,7 +138,7 @@ def main():
                 coverage_2 = algorithm["hyper_min_coverage"]/100
                 opt_param = fmin(   hyper_optimizer.hyper_test_sampled_bastar_param,
                                     space=( hp.uniform('coverage_1', 0.25, coverage_2), 
-                                            hp.uniform('coverage_2', coverage_2-0.005, coverage_2), 
+                                            hp.uniform('coverage_2', coverage_2-0.002, coverage_2), 
                                             hp.uniform('max_distance', 1, 10), 
                                             hp.uniform('max_distance_part_II', 4, 10),
                                             hp.uniform('max_iterations', 30, 150), 
