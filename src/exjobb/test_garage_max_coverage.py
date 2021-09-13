@@ -101,9 +101,9 @@ def main():
     trials = Trials()
     algorithm = ALGORITHMS["BFS"]
     hyper_optimizer = HyptoOptimizer(save_data, algorithm, my_print, HYPER_START_POS, motion_planner, coverable_points)
-    opt_param = fmin(   hyper_optimizer.hyper_test_bfs,
-                        space=( hp.uniform('step_size', 0.25, 1), 
-                                hp.uniform('visited_threshold', 0.1, 0.5)),
+    opt_param = fmin(   hyper_optimizer.hyper_test_max_coverage,
+                        space=( hp.uniform('step_size', 0.375, 1), 
+                                hp.uniform('visited_threshold', 0.1, 0.375)),
                         algo=tpe.suggest,
                         max_evals=HYPER_MAX_EVAL,
                         trials=trials)
