@@ -102,7 +102,7 @@ def main():
         ALGORITHMS = deepcopy(cache_data)
         for alg in ALGORITHMS:
             ALGORITHMS[alg]["do_hyper"] = False
-            ALGORITHMS[alg]["cpp"] = lambda print, motion_planner, cov_points, time_limit, parameters: RandomBAstar3(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters)
+            ALGORITHMS[alg]["cpp"] = lambda print, motion_planner, cov_points, time_limit, parameters: BAstar(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters)
             ALGORITHMS[alg]["experiment_results"] = []
     
     
