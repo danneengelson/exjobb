@@ -100,7 +100,6 @@ class RandomBAstar2(CPPSolver):
             if random_point is False:
                 break
             
-            self.print("starting find_closest_border")
             closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
 
             BA_segments_from_point = []
@@ -115,12 +114,16 @@ class RandomBAstar2(CPPSolver):
                 
                 #if new_BAstar_path.coverage == 0:
                 #    break
-
-            best_BA_segment = max(BA_segments_from_point, key=operator.attrgetter("coverage"))
-            self.print(str(iter) + "- bastar coverage: " + str(best_BA_segment.coverage))
-            self.explored_pcd.covered_points_idx = np.unique(np.append(self.explored_pcd.covered_points_idx, best_BA_segment.covered_points_idx))
-            exploration = self.explored_pcd.get_coverage_efficiency()
-            if best_BA_segment.coverage > self.min_bastar_coverage:
+            accepted_segments = list(filter(lambda x: x.coverage > self.min_bastar_coverage, BA_segments_from_point))
+            #self.print([a.coverage for a in accepted_segments])
+            if not accepted_segments:
+                best_BA_segment = max(BA_segments_from_point, key=operator.attrgetter("coverage"))           
+            else:
+                #best_BA_segment = max(BA_segments_from_point, key=operator.attrgetter("coverage"))
+                costs = [segment.get_cost_per_coverage() for segment in accepted_segments]
+                #self.print(costs)
+                best_BA_segment_idx = np.argmin(costs)  
+                best_BA_segment =  accepted_segments[best_BA_segment_idx]
                 self.add_segment(best_BA_segment)
                 coverage = self.tmp_coverable_pcd.get_coverage_efficiency()      
                 self.print_update(coverage)
@@ -132,7 +135,11 @@ class RandomBAstar2(CPPSolver):
                     "segment": best_BA_segment
                 })
 
+            self.print(str(iter) + "- bastar coverage: " + str(best_BA_segment.coverage))
+            self.explored_pcd.covered_points_idx = np.unique(np.append(self.explored_pcd.covered_points_idx, best_BA_segment.covered_points_idx))
+            exploration = self.explored_pcd.get_coverage_efficiency()
             self.print("exploration: " + str(exploration))
+            
             
 
         self.print("Number of found paths: " + str(len(self.all_segments)))
@@ -157,7 +164,6 @@ class RandomBAstar2(CPPSolver):
             if random_point is False:
                 break
 
-            self.print("starting find_closest_border 2")
             closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
             coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
             spiral_segment = RandomSpiralSegment(self.print, self.motion_planner, closest_border_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold)
@@ -327,7 +333,6 @@ class RandomBAstar2(CPPSolver):
 
         if ignore_list is not None:
             uncovered_coverable_points_idx = self.delete_values(uncovered_coverable_points_idx, ignore_list)
-        self.print("starting random search")
         while len(uncovered_coverable_points_idx) and not self.time_limit_reached():
             random_idx = np.random.choice(len(uncovered_coverable_points_idx), 1, replace=False)[0]
             random_uncovered_coverable_point_idx = uncovered_coverable_points_idx[random_idx]
@@ -338,7 +343,6 @@ class RandomBAstar2(CPPSolver):
                 close_coverable_points_idx = self.tmp_coverable_pcd.points_idx_in_radius(random_uncovered_coverable_point, ROBOT_RADIUS)
                 self.uncovered_coverable_points_idx = self.delete_values(self.uncovered_coverable_points_idx, close_coverable_points_idx)
                 #self.print("Has been visited. Removing " + str(len(close_coverable_points_idx)))
-                self.print("starting find_closest_traversable")
                 closest_not_visited = self.find_closest_traversable(closest_traversable_point, self.step_size, self.visited_threshold, self.visited_waypoints, self.step_size*10)
                 if closest_not_visited is False:
                     #self.print("BFS could not find an unvisited close")
@@ -346,7 +350,7 @@ class RandomBAstar2(CPPSolver):
                 return closest_not_visited
                 
                 continue
-
+            
             if not self.accessible(random_uncovered_coverable_point, self.visited_waypoints):
                 close_coverable_points_idx = self.tmp_coverable_pcd.points_idx_in_radius(random_uncovered_coverable_point, ROBOT_RADIUS)
                 self.uncovered_coverable_points_idx = self.delete_values(self.uncovered_coverable_points_idx, close_coverable_points_idx)

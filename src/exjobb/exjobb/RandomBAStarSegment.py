@@ -34,8 +34,8 @@ class BAStarSegment(BAstar):
            
             path_to_cover_local_area, current_position = self.get_path_to_cover_local_area(next_starting_point, angle_offset)
             
-            if len(path_to_cover_local_area) == 0:
-                break
+            #if len(path_to_cover_local_area) == 0:
+            #    break
 
 
             self.follow_path(path_to_cover_local_area)   
@@ -48,8 +48,10 @@ class BAStarSegment(BAstar):
                 break
 
             distance_to_point = np.linalg.norm(next_starting_point - current_position)
-            if distance_to_point < max_distance:
+            
+            if distance_to_point > max_distance:
                 break
+            
 
             path_to_next_starting_point = self.motion_planner.Astar(current_position, next_starting_point)
             
@@ -60,6 +62,8 @@ class BAStarSegment(BAstar):
             self.follow_path(path_to_next_starting_point)
             self.new_path = np.append(self.new_path, path_to_next_starting_point, axis=0)  
 
+            
+
         self.end = current_position
         self.covered_points_idx = self.coverable_pcd.covered_points_idx
         self.coverage = self.coverable_pcd.get_coverage_efficiency()
@@ -69,3 +73,31 @@ class BAStarSegment(BAstar):
         self.traversable_pcd = None
         self.motion_planner = None
         self.print = None
+    
+    def get_cost_per_coverage(self):
+        def get_length_of_path(path):
+            ''' Calculates length of the path in meters
+            '''
+            length = 0
+            for point_idx in range(len(path) - 1):
+                length += np.linalg.norm( path[point_idx] - path[point_idx + 1] )
+            return length
+
+        def get_total_rotation(path):
+            ''' Calculates the total rotation made by the robot while executing the path
+            '''
+            rotation = 0
+
+            for point_idx in range(len(path) - 2):
+                prev = (path[point_idx+1] - path[point_idx]) / np.linalg.norm( path[point_idx] - path[point_idx + 1])
+                next = (path[point_idx+2] - path[point_idx+1]) / np.linalg.norm( path[point_idx+2] - path[point_idx + 1])
+                dot_product = np.dot(prev, next)
+                curr_rotation = np.arccos(dot_product)
+                if not np.isnan(curr_rotation):
+                    rotation += abs(curr_rotation)
+
+            return rotation
+
+        length_of_path = get_length_of_path(self.path)
+        rotation = get_total_rotation(self.path[:,0:2])
+        return (length_of_path + rotation)/self.coverage
