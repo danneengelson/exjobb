@@ -76,6 +76,9 @@ class BAStarSegment(BAstar):
         self.print = None
     
     def get_cost_per_coverage(self):
+        if self.coverage == 0:
+                return np.Inf
+
         def get_length_of_path(path):
             ''' Calculates length of the path in meters
             '''

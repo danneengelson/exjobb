@@ -92,6 +92,7 @@ class RandomBorderSegment(Spiral):
         self.print = None
     
     def back_at_start_point(self, path):
+        #return False
         distances = np.linalg.norm(path - self.first_border_point, axis=1)
         closest = np.min(distances)
         self.print(closest)
