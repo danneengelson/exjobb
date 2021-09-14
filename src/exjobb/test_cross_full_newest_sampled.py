@@ -119,7 +119,7 @@ def main():
         if algorithm["do_hyper"]:
             trials = Trials()
             hyper_optimizer = HyptoOptimizer(save_data, algorithm, my_print, HYPER_START_POS, motion_planner, coverable_points)
-            opt_param = fmin(   hyper_optimizer.hyper_test_new_sampled_bastar_param,
+            opt_param = fmin(   hyper_optimizer.hyper_test_newest_sampled_bastar_param,
                                 space=( hp.uniform('ba_exploration', 0.75, 0.95), 
                                         hp.uniform('max_distance', 1, 5),  
                                         hp.uniform('max_distance_part_II', 4, 10),
