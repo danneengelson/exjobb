@@ -294,6 +294,24 @@ class MotionPlanner():
         new_pos = start_point + step_size * direction
         return self.traversable_pcd.find_k_nearest(new_pos, 1)[0]   
 
+    def new_point_at_angle(self, start_point, angle, step_size):
+        ''' Goes a step in a direction and returns the closest point from that position,
+        Args:
+            start_point: Starting point as [x,y,z] array
+            end_point: Point defining the direction as [x,y,z] array
+            step_size: Length of the step to make towards end_point.
+        Returns:
+            Closest traversable point as [x,y,z] from the end position of the step.         
+        '''
+        x = start_point[0] + np.cos(angle) * step_size
+        y = start_point[1] + np.sin(angle) * step_size
+        z = start_point[2]
+        pos = np.array([x, y, z])
+
+        direction = self.get_direction_vector(start_point, pos)
+        new_pos = start_point + step_size * direction
+        return self.traversable_pcd.find_k_nearest(new_pos, 1)[0]   
+
     def get_direction_vector(self, start, goal):
         ''' Returns the direction vector between two points.
         Args:
