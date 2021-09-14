@@ -219,11 +219,11 @@
 			\item Otherwise, distance based  according to equation 
 			\begin{align}
 			\label{eq:distanebased}
-			w = &w_\text{offset} + \\
+			w = \;&w_\text{offset} + \\
 			& | s_A(x,y) - s_B(x,y) | + \nonumber\\
 			&K | s_A(z) - s_B(z) |\nonumber
 			\end{align}
-			where $s_A$ and $s_B$ are the position of the two nodes, $w_\text{offset}$ is a large number and $K$ is coefficient bigger than 1.
+			where $s_A$ and $s_B$ are the position of the two nodes, $w_\text{offset}$ is a large number and $K\geq 1$.
 		\end{itemize}
 		
 		The purpose of $w_\text{offset}$ is to make sure that the traveling salesman algorithm in the following step always chooses to connect corresponding start and end nodes. Since the environment had multiple floors extra weight is added to difference in height, since the path in most cases will be longer. This is the purpose of coefficent $K$.
@@ -324,9 +324,9 @@
 				\textup{\textbf{continue}}
 			}
 			\eIf{\textup{$p_i$ is a start node}}{
-				$W_i \gets $\textup{Path in $S$ with $p_i$ as start node} \\
+				$W_i \gets $\textup{ Path in $S$ with $p_i$ as start node} \\
 			}{
-				$W_i \gets $\textup{Reversed path in $S$ with $p_i$ as end node} \\
+				$W_i \gets $\textup{ Reversed path in $S$ with $p_i$ as end node} \\
 			}
 			$S_\text{TSP}.\texttt{push\_back}(W_i)$ \\
 			$p_{curr} \gets \text{Last point in }W_i$ \\
