@@ -123,8 +123,8 @@ def main():
                                 space=( hp.uniform('ba_exploration', 0.75, 0.95), 
                                         hp.uniform('max_distance', 1, 5),  
                                         hp.uniform('max_distance_part_II', 4, 10),
-                                        hp.uniform('min_bastar_cost_per_coverage', 3500, 7000), 
-                                        hp.uniform('min_spiral_cost_per_coverage', 7000, 14000), 
+                                        hp.uniform('min_bastar_cost_per_coverage', 7000, 14000), 
+                                        hp.uniform('min_spiral_cost_per_coverage', 14000, 28000), 
                                         hp.uniform('step_size', 0.5, 1.0), 
                                         hp.uniform('visited_threshold', 0.25, 0.5)
                                     ),
