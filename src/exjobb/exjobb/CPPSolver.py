@@ -219,6 +219,70 @@ class CPPSolver:
                 visited = np.append(visited, [neighbour], axis=0)
 
         return False, False
+    
+    def find_closest_border(self, start_position, step_size, visited_thereshold, path):
+        """Using Breadth First Search to find the closest wall or obstacle.
+
+        Args:
+            start_position: A [x,y,z] np.array of the start position of the search
+            step_size: The approximate distance of every step towards wall
+
+        Returns:
+            The position right before wall and the angle of the robot, which will be 
+            along the wall.
+        """
+        queue = np.array([start_position])
+        visited = np.array([start_position])
+        while len(queue):
+            current_position, queue = queue[0], queue[1:]
+            neighbours = self.get_neighbours(current_position, step_size)
+            for neighbour in neighbours:
+                if not self.motion_planner.is_valid_step(current_position, neighbour) or self.has_been_visited(neighbour, visited_thereshold, path):
+                    current_angle = self.get_angle(start_position, current_position) + np.pi/2
+                    new_point  = self.motion_planner.new_point_at_angle(current_position, current_angle, step_size)
+                    safety_iter = 0
+                    while self.motion_planner.is_valid_step(current_position, new_point) and self.has_been_visited(new_point, visited_thereshold, path) and safety_iter < 20:
+                        current_position = new_point
+                        new_point  = self.motion_planner.new_point_at_angle(current_position, current_angle, step_size)
+                        safety_iter += 1
+
+                    return current_position, current_angle
+
+                #if self.has_been_visited(neighbour, path = visited):
+                #    continue
+                
+                queue = np.append(queue, [neighbour], axis=0)
+                visited = np.append(visited, [neighbour], axis=0)
+
+        return False, False
+
+    def find_closest_traversable(self, start_position, step_size, visited_thereshold, path, max_distance=False):
+        """Using Breadth First Search to find the closest wall or obstacle.
+
+        Args:
+            start_position: A [x,y,z] np.array of the start position of the search
+            step_size: The approximate distance of every step towards wall
+
+        Returns:
+            The position right before wall and the angle of the robot, which will be 
+            along the wall.
+        """
+        queue = np.array([start_position])
+        visited = np.array([start_position])
+        while len(queue):
+            current_position, queue = queue[0], queue[1:]
+            if max_distance and max_distance > np.linalg.norm(current_position - start_position):
+                return False
+
+            neighbours = self.get_neighbours(current_position, step_size)
+            for neighbour in neighbours:
+                if self.motion_planner.is_valid_step(current_position, neighbour) and not self.has_been_visited(neighbour, visited_thereshold, path):
+                    return current_position
+
+                queue = np.append(queue, [neighbour], axis=0)
+                visited = np.append(visited, [neighbour], axis=0)
+
+        return False
 
     def get_neighbours(self, current_position, step_size, angle_offset = 0):
         """Finds all neighbours of a given position. 

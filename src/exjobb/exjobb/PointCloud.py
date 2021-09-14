@@ -327,7 +327,9 @@ class PointCloud:
         self.print("Done filtering")
 
     def split_point_cloud_file(self, file):
+        
         pcd_path = file
+        #pcd_path = "urban02.pcd"
         self.print("Reading point cloud file...")
         pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_path)
         self.print("Splitting point cloud...")
@@ -335,7 +337,8 @@ class PointCloud:
         all_points = np.asarray(pcd.points)
 
         center_point = np.mean(all_points, axis=0)
-        center_point = np.array([0,0,0])
+        print(center_point)
+        #center_point = np.array([0,0,0])
 
         right = all_points[all_points[:,0] > center_point[0]]
         left = all_points[all_points[:,0] <= center_point[0]]
@@ -387,7 +390,7 @@ class PointCloud:
         x_center = 351490
         y_center =  4022890.5
         z_center = 58
-        pcd_path = "urban02.pcd"
+        pcd_path = "urban02_0.pcd"
 
         self.print("Reading point cloud file...")
         pcd = o3d.io.read_point_cloud(os.getcwd() + "/src/exjobb/exjobb/" + pcd_path)
@@ -407,7 +410,7 @@ class PointCloud:
         self.print(all_points)
         self.print("Chosen point: " + str((x_center, y_center)))
         
-        all_points = all_points[ np.linalg.norm(all_points[:,0:2], axis=1) < 300]
+        all_points = all_points[ np.linalg.norm(all_points[:,0:2], axis=1) < 50]
         
         self.print(all_points)
 

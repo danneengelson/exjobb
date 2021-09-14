@@ -93,6 +93,20 @@ class HyptoOptimizer():
         }        
         return self.hyper_test(parameters)
 
+    def hyper_test_new_sampled_bastar_param(self, args):
+        ba_exploration, max_distance, max_distance_part_II, min_bastar_coverage , min_spiral_coverage, step_size, visited_threshold = args
+        
+        parameters = {
+            "ba_exploration": ba_exploration,
+            "max_distance": max_distance,
+            "max_distance_part_II": max_distance_part_II,
+            "min_spiral_coverage": min_spiral_coverage,
+            "min_bastar_coverage": min_bastar_coverage,
+            "step_size":  step_size,
+            "visited_threshold": visited_threshold
+        }        
+        return self.hyper_test(parameters)
+
 
     def hyper_test_bfs(self, args):
         step_size, visited_threshold = args
