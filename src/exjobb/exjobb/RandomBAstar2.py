@@ -81,7 +81,7 @@ class RandomBAstar2(CPPSolver):
         #### PART 0 - Border ####    
         self.print("PART 0 - Covering border")
         coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
-        border_segment = RandomBorderSegment(self.print, self.motion_planner, start_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold)
+        border_segment = RandomBorderSegment(self.print, self.motion_planner, start_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold, self.time_left())
         self.add_segment(border_segment)
         self.explored_pcd.covered_points_idx = np.unique(np.append(self.explored_pcd.covered_points_idx, border_segment.covered_points_idx))
 
@@ -108,7 +108,7 @@ class RandomBAstar2(CPPSolver):
 
                 angle_offset = angle_idx * 2*np.pi/8
                 coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
-                new_BAstar_path = BAStarSegment(self.print, self.motion_planner, closest_border_point, angle_offset, self.visited_waypoints, coverable_pcd, self.max_distance, self.step_size, self.visited_threshold)
+                new_BAstar_path = BAStarSegment(self.print, self.motion_planner, closest_border_point, angle_offset, self.visited_waypoints, coverable_pcd, self.max_distance, self.step_size, self.visited_threshold, self.time_left())
                 
                 BA_segments_from_point.append(new_BAstar_path)
                 

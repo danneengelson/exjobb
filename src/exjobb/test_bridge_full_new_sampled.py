@@ -22,7 +22,7 @@ from exjobb.full_test_HyperOptimizer import HyptoOptimizer
 
 POINTCLOUD_FILE = 'bridge_2.pcd'
 TERRAIN_ASSESSMENT_FILE = 'bridge_terrain_assessment.dictionary'
-RESULTS_FILE = 'brdige_new_sampled.dictionary'
+RESULTS_FILE = 'brdige_new_sampled_2.dictionary'
 HYPER_MAX_EVAL = 100
 NUMBER_OF_START_POINTS = 10
 HYPER_START_POS = np.array([-53.7, 54.2, -2.7])
@@ -120,7 +120,7 @@ def main():
             hyper_optimizer = HyptoOptimizer(save_data, algorithm, my_print, HYPER_START_POS, motion_planner, coverable_points)
             opt_param = fmin(   hyper_optimizer.hyper_test_new_sampled_bastar_param,
                                 space=( hp.uniform('ba_exploration', 0.5, 0.95), 
-                                        hp.uniform('max_distance', 1, 10), 
+                                        hp.uniform('max_distance', 1, 5), 
                                         hp.uniform('max_distance_part_II', 4, 10),
                                         hp.uniform('min_bastar_coverage', 0.01, 0.1), 
                                         hp.uniform('min_spiral_coverage', 0.0005, 0.005), 

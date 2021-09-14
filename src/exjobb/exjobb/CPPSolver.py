@@ -63,6 +63,14 @@ class CPPSolver:
             self.print("TIME LIMIT REACHED")
             return True
         return False
+
+    def time_left(self):
+        ''' Start the tracking of computational time and memory consumption
+        '''
+        if self.time_limit is None:
+            return np.Inf
+        current_time = timeit.default_timer() - self.start_time
+        return self.time_limit - current_time
     
     def print_update(self, coverage):
         curr_time = str(round(timeit.default_timer() - self.start_time))
