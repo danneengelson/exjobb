@@ -123,7 +123,7 @@ def main():
                                 space=( hp.uniform('ba_exploration', 0.5, 0.95), 
                                         hp.uniform('max_distance', 1, 10), 
                                         hp.uniform('max_distance_part_II', 4, 10),
-                                        hp.uniform('min_bastar_coverage', 0.005, 0.05), 
+                                        hp.uniform('min_bastar_coverage', 0.01, 0.1), 
                                         hp.uniform('min_spiral_coverage', 0.0005, 0.005), 
                                         hp.uniform('step_size', 0.5, 1.0), 
                                         hp.uniform('visited_threshold', 0.25, 0.5)
