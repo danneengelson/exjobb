@@ -166,7 +166,7 @@ class RandomBAstar2(CPPSolver):
 
             closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
             coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
-            spiral_segment = RandomSpiralSegment(self.print, self.motion_planner, closest_border_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold)
+            spiral_segment = RandomSpiralSegment(self.print, self.motion_planner, closest_border_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold, self.time_left())
             
             self.print(str(iter) + "- spiral coverage: " + str(spiral_segment.coverage))
             

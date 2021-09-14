@@ -5,7 +5,7 @@ from exjobb.Spiral import Spiral
 class RandomBorderSegment(Spiral):
     """A class to generate a segment of BAstar path. Used in Sample-Based BAstar CPP Algorithm.
     """
-    def __init__(self, print, motion_planner, starting_point, visited_waypoints, coverable_pcd, max_distance, step_size, visited_threshold):
+    def __init__(self, print, motion_planner, starting_point, visited_waypoints, coverable_pcd, max_distance, step_size, visited_threshold, time_left):
         """
         Args:
             print: function for printing messages
