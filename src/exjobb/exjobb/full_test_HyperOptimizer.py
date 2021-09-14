@@ -17,6 +17,7 @@ class HyptoOptimizer():
         self.coverable_points = coverable_points
         self.print = print
         self.save = save
+        self.best = None
 
     def get_random_angle(self):
         return np.pi*2 * np.random.randint(8) / 8
@@ -33,20 +34,27 @@ class HyptoOptimizer():
             status = STATUS_OK
         else:
             status = STATUS_FAIL
-        
-        self.current_algorithm["formatted_hyper_data"].append({
-            "parameters": parameters,
-            "stats": stats,
-            "status": status,
-            "cost": loss
-        })
 
-        print({
+
+        info = {
             "parameters": parameters,
             "stats": stats,
             "status": status,
             "cost": loss
-        })
+        }
+        
+        self.current_algorithm["formatted_hyper_data"].append(info)
+
+        
+
+        if self.best is None or self.best["cost"] > loss:
+            if status == STATUS_OK:
+                self.best = info
+                
+        print("Current: ")
+        print(info)
+        print("Best: ")
+        print(self.best)
 
         self.save()
 
@@ -102,6 +110,20 @@ class HyptoOptimizer():
             "max_distance_part_II": max_distance_part_II,
             "min_spiral_coverage": min_spiral_coverage,
             "min_bastar_coverage": min_bastar_coverage,
+            "step_size":  step_size,
+            "visited_threshold": visited_threshold
+        }        
+        return self.hyper_test(parameters)
+
+    def hyper_test_newest_sampled_bastar_param(self, args):
+        ba_exploration, max_distance, max_distance_part_II, min_bastar_cost_per_coverage , min_spiral_cost_per_coverage, step_size, visited_threshold = args
+        
+        parameters = {
+            "ba_exploration": ba_exploration,
+            "max_distance": max_distance,
+            "max_distance_part_II": max_distance_part_II,
+            "min_spiral_cost_per_coverage": min_spiral_cost_per_coverage,
+            "min_bastar_cost_per_coverage": min_bastar_cost_per_coverage,
             "step_size":  step_size,
             "visited_threshold": visited_threshold
         }        
