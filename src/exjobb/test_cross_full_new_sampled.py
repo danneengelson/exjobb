@@ -38,7 +38,7 @@ start_points = {
     8: np.array([ 8.96875   , -0.25      , -1.26380157]), 
     9: np.array([-6.65625   , -2.75      ,  0.02619934])}
 
-PRINT = False
+PRINT = True
 ALGORITHMS = {
     "New Sampled BA*": {
         "name": "New Sampled BA* & Inward Spiral",

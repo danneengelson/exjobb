@@ -100,6 +100,7 @@ class RandomBAstar2(CPPSolver):
             if random_point is False:
                 break
             
+            self.print("starting find_closest_border")
             closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
 
             BA_segments_from_point = []
@@ -155,6 +156,8 @@ class RandomBAstar2(CPPSolver):
             random_point = self.get_random_uncovered_point()
             if random_point is False:
                 break
+
+            self.print("starting find_closest_border 2")
             closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
             coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
             spiral_segment = RandomSpiralSegment(self.print, self.motion_planner, closest_border_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold)
@@ -324,8 +327,8 @@ class RandomBAstar2(CPPSolver):
 
         if ignore_list is not None:
             uncovered_coverable_points_idx = self.delete_values(uncovered_coverable_points_idx, ignore_list)
-
-        while len(uncovered_coverable_points_idx):
+        self.print("starting random search")
+        while len(uncovered_coverable_points_idx) and not self.time_limit_reached():
             random_idx = np.random.choice(len(uncovered_coverable_points_idx), 1, replace=False)[0]
             random_uncovered_coverable_point_idx = uncovered_coverable_points_idx[random_idx]
             random_uncovered_coverable_point = self.coverable_pcd.points[random_uncovered_coverable_point_idx]
@@ -335,6 +338,7 @@ class RandomBAstar2(CPPSolver):
                 close_coverable_points_idx = self.tmp_coverable_pcd.points_idx_in_radius(random_uncovered_coverable_point, ROBOT_RADIUS)
                 self.uncovered_coverable_points_idx = self.delete_values(self.uncovered_coverable_points_idx, close_coverable_points_idx)
                 #self.print("Has been visited. Removing " + str(len(close_coverable_points_idx)))
+                self.print("starting find_closest_traversable")
                 closest_not_visited = self.find_closest_traversable(closest_traversable_point, self.step_size, self.visited_threshold, self.visited_waypoints, self.step_size*10)
                 if closest_not_visited is False:
                     #self.print("BFS could not find an unvisited close")
@@ -351,7 +355,7 @@ class RandomBAstar2(CPPSolver):
             
             break
 
-        if len(uncovered_coverable_points_idx):
+        if len(uncovered_coverable_points_idx) and not self.time_limit_reached():
             return closest_traversable_point
         
         return False
