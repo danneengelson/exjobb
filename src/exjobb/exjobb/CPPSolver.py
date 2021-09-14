@@ -248,8 +248,8 @@ class CPPSolver:
 
                     return current_position, current_angle
 
-                #if self.has_been_visited(neighbour, path = visited):
-                #    continue
+                if self.has_been_visited(neighbour, path = visited):
+                    continue
                 
                 queue = np.append(queue, [neighbour], axis=0)
                 visited = np.append(visited, [neighbour], axis=0)
@@ -278,6 +278,9 @@ class CPPSolver:
             for neighbour in neighbours:
                 if self.motion_planner.is_valid_step(current_position, neighbour) and not self.has_been_visited(neighbour, visited_thereshold, path):
                     return current_position
+
+                if self.has_been_visited(neighbour, path = visited):
+                    continue
 
                 queue = np.append(queue, [neighbour], axis=0)
                 visited = np.append(visited, [neighbour], axis=0)
