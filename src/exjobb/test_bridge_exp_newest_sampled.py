@@ -82,7 +82,8 @@ def main():
             all_hyper_data =  ALGORITHMS[alg]["formatted_hyper_data"]
             minimal_cost = min(all_hyper_data, key=lambda x: x["cost"])
             ALGORITHMS[alg]["opt_param"] = minimal_cost["parameters"]
-    
+            ALGORITHMS[alg]["cpp"] = lambda print, motion_planner, cov_points, time_limit, parameters: RandomBAstar3(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters)
+
 
     
 
