@@ -5,7 +5,7 @@ from exjobb.Spiral import Spiral
 class RandomSpiralSegment(Spiral):
     """A class to generate a segment of BAstar path. Used in Sample-Based BAstar CPP Algorithm.
     """
-    def __init__(self, print, motion_planner, starting_point, visited_waypoints, coverable_pcd, max_distance, step_size, visited_threshold):
+    def __init__(self, print, motion_planner, starting_point, visited_waypoints, coverable_pcd, max_distance, step_size, visited_threshold, time_left):
         """
         Args:
             print: function for printing messages
@@ -24,6 +24,8 @@ class RandomSpiralSegment(Spiral):
         self.start = starting_point
         self.path = visited_waypoints
         self.path = np.append(self.path, [starting_point], axis=0)    
+        self.start_tracking()
+        self.time_limit = time_left
 
         self.new_path = np.empty((0,3))
         next_starting_point = starting_point
@@ -32,7 +34,7 @@ class RandomSpiralSegment(Spiral):
         current_position = starting_point
 
         
-        while True:
+        while not self.time_limit_reached():
 
             path_until_dead_zone, current_position = self.get_path_until_dead_zone(current_position, current_angle)
             self.follow_path(path_until_dead_zone)

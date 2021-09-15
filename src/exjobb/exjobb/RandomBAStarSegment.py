@@ -5,7 +5,7 @@ from exjobb.Parameters import ROBOT_SIZE
 class BAStarSegment(BAstar):
     """A class to generate a segment of BAstar path. Used in Sample-Based BAstar CPP Algorithm.
     """
-    def __init__(self, print, motion_planner, starting_point, angle_offset, visited_waypoints, coverable_pcd, max_distance, step_size, visited_threshold):
+    def __init__(self, print, motion_planner, starting_point, angle_offset, visited_waypoints, coverable_pcd, max_distance, step_size, visited_threshold, time_left):
         """
         Args:
             print: function for printing messages
@@ -21,7 +21,8 @@ class BAStarSegment(BAstar):
         }
         super().__init__(print, motion_planner, coverable_pcd, parameters)
 
-
+        self.start_tracking()
+        self.time_limit = time_left
         self.start = starting_point
         self.path = visited_waypoints
         self.path = np.append(self.path, [starting_point], axis=0)    
@@ -30,7 +31,7 @@ class BAStarSegment(BAstar):
         next_starting_point = starting_point
         
         
-        while True:
+        while not self.time_limit_reached():
            
             path_to_cover_local_area, current_position = self.get_path_to_cover_local_area(next_starting_point, angle_offset)
             
