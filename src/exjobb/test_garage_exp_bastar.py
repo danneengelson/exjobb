@@ -22,6 +22,7 @@ from exjobb.full_test_HyperOptimizer import HyptoOptimizer
 
 POINTCLOUD_FILE = 'garage.pcd'
 TERRAIN_ASSESSMENT_FILE = 'garage_terrain_assessment.dictionary'
+PREVIOUS_FILE = 'garage_bastar.dictionary'
 RESULTS_FILE = 'garage_bastar_lower_astar.dictionary'
 HYPER_MAX_EVAL = 100
 NUMBER_OF_START_POINTS = 10
@@ -39,7 +40,7 @@ start_points = {
     9: np.array( [ 23.05999947, -10.5,        -10.35468674])}
 
 
-PRINT = False
+PRINT = True
 ALGORITHMS = {
     "BA*": {
         "name": "BA*",
@@ -94,6 +95,15 @@ def main():
     #    for alg in ALGORITHMS:
     #        if ALGORITHMS[alg]["do_hyper"]:
     #            ALGORITHMS[alg]["opt_param"] = cache_data[alg]["opt_param"]
+    
+    
+    with open(PREVIOUS_FILE, 'rb') as cached_pcd_file:
+        cache_data = pickle.load(cached_pcd_file)
+        ALGORITHMS = deepcopy(cache_data)
+        for alg in ALGORITHMS:
+            ALGORITHMS[alg]["do_hyper"] = False
+            ALGORITHMS[alg]["cpp"] = lambda print, motion_planner, cov_points, time_limit, parameters: BAstar(print, motion_planner, PointCloud(print, points= cov_points), time_limit, parameters)
+            ALGORITHMS[alg]["experiment_results"] = []
     
     
     

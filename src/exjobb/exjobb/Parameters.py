@@ -28,19 +28,20 @@ Z_RESOLUTION = 0.1
 
 #20*Z_RESOLUTION for bridge
 #7*Z_RESOLUTION for garage
-GROUND_OFFSET = 20*Z_RESOLUTION
+GROUND_OFFSET = 1*Z_RESOLUTION
 
 MIN_FLOOR_HEIGHT = 2
 MAX_STEP_HEIGHT = 0.2
 
 #CELL_SIZE**2 * 50 for bridge
 #CELL_SIZE**2 * 50 for garage
-MIN_POINTS_IN_CELL = CELL_SIZE**2 * 50 #for pointcloud1
+MIN_POINTS_IN_CELL = CELL_SIZE**2 * 100 #for pointcloud1
 #MIN_POINTS_IN_CELL = CELL_SIZE**2 * 50 #for pointcloud2 
 
 #40000 for bridge
 #100000 for garage
-FLOOR_LEVEL_HEIGHT_THRESSHOLD = 40000 #for pointcloud1,2,3
+#15000 for crossing
+FLOOR_LEVEL_HEIGHT_THRESSHOLD = 15000 #for pointcloud1,2,3
 #FLOOR_LEVEL_HEIGHT_THRESSHOLD = 5000 #for pointcloud4
 #FLOOR_LEVEL_HEIGHT_THRESSHOLD = 40000 #for bridge
 MARGIN = 0.25
@@ -104,5 +105,5 @@ RANDOM_BASTAR_NUMBER_OF_ANGLES = int(round(sampled_hypto["nbr_of_angles"]))
 RANDOM_BASTAR_PART_I_COVERAGE = sampled_hypto["coverage_1"]
 RANDOM_BASTAR_VARIANT_DISTANCE = sampled_hypto["max_distance"]
 RANDOM_BASTAR_VARIANT_DISTANCE_PART_II = sampled_hypto["max_distance_part_II"]
-RANDOM_BASTAR_MIN_COVERAGE = sampled_hypto["min_bastar_coverage"]
+RANDOM_BASTAR_MIN_COVERAGE = 0.01 #sampled_hypto["min_bastar_coverage"]
 RANDOM_BASTAR_MIN_SPIRAL_LENGTH = sampled_hypto["min_spiral_length"]
