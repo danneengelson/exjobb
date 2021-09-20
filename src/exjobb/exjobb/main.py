@@ -30,17 +30,17 @@ import exjobb.ROSMessage as ROSMessage
 DO_TERRAIN_ASSESSMENT = False
 PUBLISH_FULL_PCD = True
 PUBLISH_GROUND_PCD = True
-PUBLISH_MARKERS = False
-PUBLISH_PATH = False
-PUBLISH_PATH_ANIMATION = True
+PUBLISH_MARKERS = True
+PUBLISH_PATH = True
+PUBLISH_PATH_ANIMATION = False
 PUBLISH_SEGMENTS_ANIMATION = False
 PUBLISH_VISITED_PCD = False 
-PUBLISH_VISITED_GROUND_PCD = False
+PUBLISH_VISITED_GROUND_PCD = True
 PUBLISH_TRAVERSABLE_PCD = True
 PUBLISH_INACCESSIBLE_PCD = False
 
 MOTION_PLANNER_TEST = False
-CPP_TEST = True
+CPP_TEST = False
 COLLECT_RESULT = False
 SMALL_POINT_CLOUD = False
 PCD_FROM_MAP = False
@@ -281,8 +281,8 @@ class MainNode(Node):
             #param = {'step_size': 0.5,
             #                     'visited_threshold': 0.4}
             start_point = [-20.7, 43, -1]
-            start_point = np.array([28.6, -6.7, -10.3]) #garage
-            #start_point =  np.array([-53.7, 54.2, -2.7]) #bridge
+            #start_point = np.array([28.6, -6.7, -10.3]) #garage
+            start_point =  np.array([-53.7, 54.2, -2.7]) #bridge
             #start_point = np.array([-20.7, 43, -1]) #cross
             #start_point = np.array([15.6, -16.7, -5.3])
             #start_point = np.array([0.6,0.6,0])
@@ -293,7 +293,7 @@ class MainNode(Node):
             #    #self.markers.append( {"point": self.traversable_point_cloud.points[random_idx], "color": RED} )
             #self.print(start_points)
 
-            self.cpp = RandomBAstar3(self.print, motion_planner, self.coverable_point_cloud, time_limit=300, parameters = sparam3)
+            self.cpp = RandomBAstar3(self.print, motion_planner, self.coverable_point_cloud, time_limit=300, parameters = sparam4)
             self.path = self.cpp.get_cpp_path(start_point, goal_coverage=0.97)
             #self.path = self.cpp.breadth_first_search(start_point)
             #self.print(self.cpp.print_results())
@@ -318,27 +318,27 @@ class MainNode(Node):
             #traversable_pcd_pub = self.create_timer(timer_period, self.traversable_point_cloud_publisher)  
             self.traversable_point_cloud_publisher()  
         
-        HYPER_START_POS = np.array([-53.7, 54.2, -2.7])
-        start_points = {
-            0: np.array([-43.10443115,   3.99802136,   4.46702003]), 
-            1: np.array([ 21.61431885, -33.00197983,  -2.77298403]), 
-            2: np.array([-34.51068115,  12.49802208,  -4.17298126]), 
-            3: np.array([ 15.9268198 , -36.00197983,  -2.6929822 ]), 
-            4: np.array([38.98931885, 45.49802399,  1.19701743]), 
-            5: np.array([ 3.73931861, 40.74802399,  2.83701849]), 
-            6: np.array([ 15.5205698 , -31.50197792,  -2.8729825 ]), 
-            7: np.array([-16.44818115, -19.25197792,  -3.58298159]), 
-            8: np.array([10.52056885, 42.74802399,  2.46701956]), 
-            9: np.array([53.89556885, 35.99802399,  0.33701676])}
-        for point in start_points.values():
-             self.markers.append({
-                 "point": point,
-                 "color": [0.0,0.0,1.0]
-             })
-        self.markers.append({
-                 "point": HYPER_START_POS,
-                 "color": [0.0,1.0,0.0]
-             })
+        #HYPER_START_POS = np.array([-53.7, 54.2, -2.7])
+        #start_points = {
+        #    0: np.array([-43.10443115,   3.99802136,   4.46702003]), 
+        #    1: np.array([ 21.61431885, -33.00197983,  -2.77298403]), 
+        #    2: np.array([-34.51068115,  12.49802208,  -4.17298126]), 
+        #    3: np.array([ 15.9268198 , -36.00197983,  -2.6929822 ]), 
+        #    4: np.array([38.98931885, 45.49802399,  1.19701743]), 
+        #    5: np.array([ 3.73931861, 40.74802399,  2.83701849]), 
+        #    6: np.array([ 15.5205698 , -31.50197792,  -2.8729825 ]), 
+        #    7: np.array([-16.44818115, -19.25197792,  -3.58298159]), 
+        #    8: np.array([10.52056885, 42.74802399,  2.46701956]), 
+        #    9: np.array([53.89556885, 35.99802399,  0.33701676])}
+        #for point in start_points.values():
+        #     self.markers.append({
+        #         "point": point,
+        #         "color": [0.0,0.0,1.0]
+        #     })
+        #self.markers.append({
+        #         "point": HYPER_START_POS,
+        #         "color": [0.0,1.0,0.0]
+        #     })
         #CPP_TEST = True
         if PUBLISH_MARKERS and len(self.markers):
             #for marker in self.cpp.points_to_mark:
@@ -443,7 +443,7 @@ class MainNode(Node):
         
         for idx, marker in enumerate(self.markers[0:max]):
             stamp = self.get_clock().now().to_msg()
-            msg = ROSMessage.point_marker(self.last_id, stamp, marker["point"], marker["color"])
+            msg = ROSMessage.point_marker(self.last_id, stamp, marker["point"], marker["color"], str(idx))
             self.markers_msg.markers.append(msg)
             self.last_id += 1
 
