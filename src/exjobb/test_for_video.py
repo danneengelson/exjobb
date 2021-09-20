@@ -191,3 +191,9 @@ def main():
         pub_path["markers"] = cpp.points_to_mark
         pub_path["stats"] = cpp.print_stats(pub_path["path"])
         save_data(ALL_PATHS)
+
+    print("DONE!")
+
+    
+if __name__ == "__main__":
+    main()
