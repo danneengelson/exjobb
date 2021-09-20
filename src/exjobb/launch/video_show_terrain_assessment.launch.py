@@ -4,7 +4,6 @@ import os
 from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     base_path = os.path.realpath(get_package_share_directory('exjobb'))
-    print(base_path)
     rviz_path=base_path+'/config/rviz_conf.rviz'
     return LaunchDescription([
         Node(
