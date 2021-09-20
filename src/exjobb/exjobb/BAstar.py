@@ -1,9 +1,10 @@
 import numpy as np
 
-from exjobb.CPPSolver import CPPSolver 
+from exjobb.CPPSolver import CPPSolver, Segment 
 from exjobb.Parameters import BASTAR_STEP_SIZE, BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL, ROBOT_SIZE
 from exjobb.Graph import NORTH, NORTHEAST, EAST, SOUTHEAST, SOUTH, SOUTHWEST, WEST, NORTHWEST
 from exjobb.Graph import TraversableGraph
+
 
 class BAstar(CPPSolver):
     ''' Solving the Coverage Path Planning Problem with BAstar
@@ -51,6 +52,9 @@ class BAstar(CPPSolver):
         coverage = 0
         self.move_to(start_point)
 
+        
+        
+
         current_position = start_point
 
         starting_point, _ = self.find_closest_wall(start_point, self.step_size)
@@ -61,9 +65,24 @@ class BAstar(CPPSolver):
             path_to_starting_point = self.motion_planner.Astar(current_position, starting_point)
             self.follow_path(path_to_starting_point)
 
+        self.all_segments = []
+        self.all_movements = []
+        iter = 0
+
         while coverage < goal_coverage and not self.time_limit_reached():
+            iter += 1
+            self.points_to_mark.append({
+                "point": starting_point,
+                "color": [0.0,1.0,0.0]
+            })
+
             
             path_to_cover_local_area, current_position = self.get_path_to_cover_local_area(starting_point, angle_offset)
+
+            self.points_to_mark.append({
+                "point": current_position,
+                "color": [1.0,0.0,0.0]
+            })
 
             if len(path_to_cover_local_area) == 0:
                 self.print("No path found when covering local area!")  
@@ -87,6 +106,14 @@ class BAstar(CPPSolver):
             coverage = self.coverable_pcd.get_coverage_efficiency()
             self.save_sample_for_results(coverage)
             self.print_update(coverage)
+
+            self.points_to_mark.append({
+                "point": next_starting_point,
+                "color": [1.0,1.0,0.0]
+            })
+            
+            self.all_segments.append(Segment(path_to_cover_local_area))
+            self.all_movements.append(Segment(path_to_next_starting_point))
         
         #self.print_stats(self.path)
         

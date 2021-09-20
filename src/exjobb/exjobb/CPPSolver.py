@@ -19,6 +19,12 @@ ROBOT_RADIUS = ROBOT_SIZE/2
 STEP_SIZE = ROBOT_SIZE
 UNTRAVERSABLE_THRESHHOLD = 1.5*STEP_SIZE
 
+class Segment():
+    
+    def __init__(self, path) -> None:
+        self.path = path
+
+
 class CPPSolver:
     ''' Abstract class of a Coverage Path Problem Solver
     '''

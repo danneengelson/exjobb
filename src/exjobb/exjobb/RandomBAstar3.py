@@ -4,7 +4,7 @@ import numpy as np
 import operator
 import pickle
 
-from exjobb.CPPSolver import CPPSolver
+from exjobb.CPPSolver import CPPSolver, Segment
 from exjobb.RandomBAStarSegment import BAStarSegment
 from exjobb.RandomSpriralSegment import RandomSpiralSegment
 from exjobb.Parameters import BASTAR_STEP_SIZE, BASTAR_VISITED_TRESHOLD, RANDOM_BASTAR_VISITED_TRESHOLD, COVEREAGE_EFFICIENCY_GOAL, RANDOM_BASTAR_MAX_ITERATIONS, RANDOM_BASTAR_NUMBER_OF_ANGLES, RANDOM_BASTAR_PART_I_COVERAGE, RANDOM_BASTAR_MIN_COVERAGE, RANDOM_BASTAR_MIN_SPIRAL_LENGTH, RANDOM_BASTAR_VARIANT_DISTANCE, RANDOM_BASTAR_VARIANT_DISTANCE_PART_II, ROBOT_RADIUS, ROBOT_SIZE
@@ -56,6 +56,7 @@ class RandomBAstar3(CPPSolver):
         
         self.randombastar_stats = {}
         self.randombastar_stats_over_time = []
+        self.all_movements = []
 
 
     def get_cpp_path(self, start_point, goal_coverage = None):
@@ -95,6 +96,7 @@ class RandomBAstar3(CPPSolver):
                 #    "point": random_point,
                 #    "color": [1.0,0.0,1.0]
                 #})
+
                 if random_point is False:
                     break
                 
@@ -103,7 +105,7 @@ class RandomBAstar3(CPPSolver):
                     "point": closest_border_point,
                     "color": [0.0,1.0,0.0]
                 })
-                #return np.empty((0,3))
+                
                 
                 BA_segments_from_point = []
 
@@ -156,6 +158,7 @@ class RandomBAstar3(CPPSolver):
                 self.explored_pcd.covered_points_idx = np.unique(np.append(self.explored_pcd.covered_points_idx, best_BA_segment.covered_points_idx))
                 exploration = self.explored_pcd.get_coverage_efficiency()
                 self.print("exploration: " + str(exploration))
+
                 
                 
 
@@ -371,6 +374,7 @@ class RandomBAstar3(CPPSolver):
                                         and BAStarSegment
         """
         current_position = start_position
+        
 
         for idx, path in enumerate(paths_to_visit_in_order):
             
@@ -380,6 +384,7 @@ class RandomBAstar3(CPPSolver):
             self.path = np.append(self.path, path.path, axis=0)
             self.coverable_pcd.covered_points_idx = np.unique(np.append(self.coverable_pcd.covered_points_idx, path.covered_points_idx, axis=0))
             current_position = self.path[-1]
+            self.all_movements.append(Segment(path_to_next_starting_point))
 
     def get_random_uncovered_point(self, ignore_list = None, iter = False ):
         """Returns a random uncovered point

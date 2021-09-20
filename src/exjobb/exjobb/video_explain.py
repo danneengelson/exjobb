@@ -20,7 +20,8 @@ import time
 
 FILE = 'src/exjobb/garage_video.dictionary'
 PATH_NS = "spiral_4"
-PATH_NS = "bastar_4"
+#PATH_NS = "bastar_4"
+#PATH_NS = "sampled_3"
 
 class MainNode(Node):
 
@@ -76,24 +77,41 @@ class MainNode(Node):
         self.coverable_pcd_pub.publish(coverable_point_cloud.point_cloud(coverable_point_cloud.points, 'my_frame'))
         self.traversable_pcd_pub.publish(traversable_point_cloud.point_cloud(traversable_point_cloud.points, 'my_frame'))
 
-        #Only markers
         self.markers_msg = visualization_msgs.MarkerArray()
         self.last_id = 0
-        for idx, marker in enumerate(markers):
-            stamp = self.get_clock().now().to_msg()
-            msg = ROSMessage.point_marker(self.last_id, stamp, marker["point"], marker["color"], "markers")
-            self.markers_msg.markers.append(msg)
-            self.last_id += 1
+        ANIMATION = True
+
+        if not ANIMATION:
+
+            #Only markers
+            
+            for idx, marker in enumerate(markers):
+                stamp = self.get_clock().now().to_msg()
+                msg = ROSMessage.point_marker(self.last_id, stamp, marker["point"], marker["color"], "markers")
+                self.markers_msg.markers.append(msg)
+                self.last_id += 1
+        
+
         
 
         #Add segments
         coverable_point_cloud.covered_points_idx = np.array([])
         for idx, segment in enumerate(all_segments):
+            if len(segment.path) == 0:
+                #all_movements.pop(idx)
+                continue
             stamp = self.get_clock().now().to_msg()
             msg = ROSMessage.line_marker(self.last_id, stamp, segment.path, [0.1,1.0,1.0], "segment"+str(idx))
             self.markers_msg.markers.append(msg)
             self.last_id += 1
+            
             coverable_point_cloud.visit_path(segment.path)
+
+            if ANIMATION:
+                visited_ground_points_pcd = coverable_point_cloud.get_covered_points_as_pcd()
+                self.visited_ground_pcd_pub.publish(visited_ground_points_pcd)
+                self.markers_pub.publish(self.markers_msg)
+                time.sleep(1)
 
         #Add Movements
         for idx, move in enumerate(all_movements):
@@ -101,6 +119,8 @@ class MainNode(Node):
             msg = ROSMessage.line_marker(self.last_id, stamp, move.path, [1.0,0.5,0.5], "move"+str(idx))
             self.markers_msg.markers.append(msg)
             self.last_id += 1
+
+        
             
             
 

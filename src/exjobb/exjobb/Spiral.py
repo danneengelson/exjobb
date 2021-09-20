@@ -1,8 +1,13 @@
 import numpy as np
 
-from exjobb.CPPSolver import CPPSolver
+from exjobb.CPPSolver import CPPSolver, Segment
 from exjobb.MotionPlanner import MotionPlanner
 from exjobb.Parameters import ROBOT_SIZE, COVEREAGE_EFFICIENCY_GOAL, SPIRAL_STEP_SIZE, SPIRAL_VISITED_TRESHOLD
+
+class Segment():
+    
+    def __init__(self, path) -> None:
+        self.path = path
 
 class Spiral(CPPSolver):
     """ Implementation of the Inward Spiral Coverage Path Planning Algorithm
@@ -45,24 +50,45 @@ class Spiral(CPPSolver):
         self.start_tracking()
         self.move_to(start_point)
 
+        
+
+
         next_starting_point, current_angle = self.find_closest_wall(start_point, self.step_size)
         path_to_next_starting_point = self.motion_planner.Astar(start_point, next_starting_point)
         self.follow_path(path_to_next_starting_point)
 
         current_position = next_starting_point
         coverage = 0
+
         
+        self.all_segments = []
+        self.all_movements = []
+        
+        iter = 0
+
+        self.points_to_mark.append({
+                "point": start_point,
+                "color": [0.0,1.0,0.0]
+        })
+
         while coverage < goal_coverage and not self.time_limit_reached():
+            iter += 1
 
             next_starting_point, evaluated_points =  self.get_next_starting_point(current_position)
+
+            
             
             if next_starting_point is False:
                 if len(evaluated_points) == 1:
                     next_starting_point = self.path[-2]
                 else:
                     break
+            
 
             path_until_dead_zone, new_current_position = self.get_path_until_dead_zone(next_starting_point, current_angle)
+
+            
+
 
             path_to_next_starting_point = self.motion_planner.Astar(current_position, next_starting_point)
             
@@ -72,6 +98,16 @@ class Spiral(CPPSolver):
 
             self.follow_path(path_to_next_starting_point)
 
+            self.points_to_mark.append({
+                "point": next_starting_point,
+                "color": [1.0,1.0,0.0]
+            })
+
+            self.points_to_mark.append({
+                "point": new_current_position,
+                "color": [1.0,0.0,0.0]
+            })
+
             self.follow_path(path_until_dead_zone)
 
             current_position = new_current_position
@@ -79,6 +115,12 @@ class Spiral(CPPSolver):
             coverage = self.coverable_pcd.get_coverage_efficiency()
             self.save_sample_for_results(coverage)
             self.print_update(coverage)
+
+            
+
+            self.all_segments.append(Segment(path_until_dead_zone))
+            self.all_movements.append(Segment(path_to_next_starting_point))
+            
   
         #self.print_stats(self.path)
         

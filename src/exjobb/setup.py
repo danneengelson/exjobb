@@ -30,6 +30,7 @@ setup(
             'video_simple = exjobb.video_simple:main',
             'video_show_terrain_assessment = exjobb.video_show_terrain_assessment:main',
             'video_explain = exjobb.video_explain:main',
+            'video_run_best = exjobb.video_run_best:main',
             'exp1 = exjobb.Experiment1:main',
             'exp2 = exjobb.Experiment2:main',
             'exp3 = exjobb.ExperimentParameter:main',
