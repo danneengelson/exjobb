@@ -170,7 +170,7 @@ def main():
 
     TIME_LIMIT = 400
     start_point = np.array([28.6, -6.7, -10.3])
-    goal_coverage = 0.1
+    goal_coverage = 0.97
     paths_markers = []
     #Get CPP path
     for pub_path in ALL_PATHS:
