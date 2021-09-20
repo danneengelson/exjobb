@@ -8,10 +8,11 @@ BLUE = [0.0, 0.0, 1.0]
 GREEN = [0.0, 1.0, 0.0]
 
 
-def point_marker(id, stamp, point, color):
+def point_marker(id, stamp, point, color, ns):
     msg = visualization_msgs.Marker()
     msg.header.frame_id = "my_frame"
     msg.header.stamp = stamp
+    msg.ns = ns
     msg.id = id
     msg.type = 1
     msg.action = 0
@@ -40,6 +41,7 @@ def arrow(id, stamp, start_point, direction, color):
     msg.pose.position.x = start_point[0]
     msg.pose.position.y = start_point[1]
     msg.pose.position.z = start_point[2]
+    
     #calculating the half-way vector.
     u = [1,0,0]
     norm = np.linalg.norm(direction)
@@ -72,6 +74,32 @@ def arrow(id, stamp, start_point, direction, color):
     msg.scale.x = 1.0
     msg.scale.y = 0.1
     msg.scale.z = 0.1
+    msg.color.r = color[0]
+    msg.color.g = color[1]
+    msg.color.b = color[2]
+    msg.color.a = 1.0
+    msg.frame_locked = True
+    return msg
+
+def line_marker(id, stamp, path, color, ns):
+    msg = visualization_msgs.Marker()
+    msg.header.frame_id = "my_frame"
+    msg.header.stamp = stamp
+    msg.ns = ns
+    msg.id = id
+    msg.type = 4
+    msg.action = 0
+    msg.points = []
+    for point in path:
+        position = geometry_msgs.Point()
+        position.x = point[0]
+        position.y = point[1]
+        position.z = point[2]+0.05
+        msg.points.append(position)
+    #msg.points = path
+    msg.scale.x = 0.05
+    msg.scale.y = 0.05
+    msg.scale.z = 0.05
     msg.color.r = color[0]
     msg.color.g = color[1]
     msg.color.b = color[2]
