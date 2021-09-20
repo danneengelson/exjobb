@@ -18,7 +18,7 @@ import pickle
 import open3d as o3d
 import time
 
-PCD = "crossing"
+PCD = "garage"
 
 PCD_DATA = {
     "garage": {
