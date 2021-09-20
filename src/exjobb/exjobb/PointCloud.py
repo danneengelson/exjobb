@@ -205,7 +205,7 @@ class PointCloud:
             fields=fields,
             point_step=(itemsize * 3), # Every point consists of three float32s.
             row_step=(itemsize * 3 * points.shape[0]),
-            data=data
+            data=data,
         )
 
     def find_k_nearest(self, position, k):

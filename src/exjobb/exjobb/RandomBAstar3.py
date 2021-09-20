@@ -76,127 +76,158 @@ class RandomBAstar3(CPPSolver):
         self.tmp_coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
         self.explored_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
         self.uncovered_coverable_points_idx = np.arange(len(self.tmp_coverable_pcd.points))
-        iter = 0
+        iter = 1
 
-        #### PART 1 - BA* ####    
-        self.print("PART 1 - Covering with BA*")
-        coverage = self.tmp_coverable_pcd.get_coverage_efficiency()        
-        exploration = self.explored_pcd.get_coverage_efficiency()        
+        if False:
+            with open('cached_sampled_show.dictionary', 'rb') as cached_pcd_file:
+                cache_data = pickle.load(cached_pcd_file)
+                self.all_segments = cache_data["all_segments"]
+        else:
+            #### PART 1 - BA* ####    
+            self.print("PART 1 - Covering with BA*")
+            coverage = self.tmp_coverable_pcd.get_coverage_efficiency()        
+            exploration = self.explored_pcd.get_coverage_efficiency()        
 
-        while exploration < self.ba_exploration and coverage < goal_coverage and not self.time_limit_reached():
-            iter += 1            
-            random_point = self.get_random_uncovered_point(ignore_list = self.explored_pcd.covered_points_idx)
-            
-            if random_point is False:
-                break
-            
-            closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
-
-            BA_segments_from_point = []
-
-            for angle_idx in range(4):
-
-                angle_offset = angle_idx * 2*np.pi/4
-                coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
-                new_BAstar_path = BAStarSegment(self.print, self.motion_planner, closest_border_point, angle_offset, self.visited_waypoints, coverable_pcd, self.max_distance, self.step_size, self.visited_threshold, self.time_left())
+            while exploration < self.ba_exploration and coverage < goal_coverage and not self.time_limit_reached():
+                iter += 1            
+                random_point = self.get_random_uncovered_point(ignore_list = self.explored_pcd.covered_points_idx, iter=iter)
+                #self.points_to_mark.append({
+                #    "point": random_point,
+                #    "color": [1.0,0.0,1.0]
+                #})
+                if random_point is False:
+                    break
                 
-                BA_segments_from_point.append(new_BAstar_path)
+                closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
+                self.points_to_mark.append({
+                    "point": closest_border_point,
+                    "color": [0.0,1.0,0.0]
+                })
+                #return np.empty((0,3))
+                
+                BA_segments_from_point = []
 
-            accepted_segments = list(filter(lambda x: self.get_cost_per_coverage(x) < self.min_bastar_cost_per_coverage, BA_segments_from_point))
+                for angle_idx in range(4):
 
-            #self.print([self.get_cost_per_coverage(a) for a in BA_segments_from_point])
-            if not accepted_segments:
-                #coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
-                #spiral_segment = RandomSpiralSegment(self.print, self.motion_planner, closest_border_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold, self.time_left())
-                #cost_per_coverage = self.get_cost_per_coverage(spiral_segment)
-                #self.print("cost_per_coverage spiral: " + str(cost_per_coverage))
-                #if cost_per_coverage < 15000:
-                #    self.add_segment(spiral_segment)
-                #    best_BA_segment = spiral_segment
-                #    self.print("COVERING WITH SPIRAL INSTEAD")
-                #else:
-                best_BA_segment = max(BA_segments_from_point, key=operator.attrgetter("coverage"))           
-            else:
-                #best_BA_segment = max(BA_segments_from_point, key=operator.attrgetter("coverage"))
-                costs = [self.get_cost_per_coverage(segment) for segment in accepted_segments]
-                #self.print(costs)
+                    angle_offset = angle_idx * 2*np.pi/4
+                    coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
+                    new_BAstar_path = BAStarSegment(self.print, self.motion_planner, closest_border_point, angle_offset, self.visited_waypoints, coverable_pcd, self.max_distance, self.step_size, self.visited_threshold, self.time_left())
+                    
+                    BA_segments_from_point.append(new_BAstar_path)
+                    
+                
+                
 
-                best_BA_segment_idx = np.argmin(costs)  
-                best_BA_segment =  accepted_segments[best_BA_segment_idx]
-                self.add_segment(best_BA_segment)
-                coverage = self.tmp_coverable_pcd.get_coverage_efficiency()      
-                self.print_update(coverage)
+                accepted_segments = list(filter(lambda x: self.get_cost_per_coverage(x) < self.min_bastar_cost_per_coverage, BA_segments_from_point))
+
+                #self.print([self.get_cost_per_coverage(a) for a in BA_segments_from_point])
+                if not accepted_segments:
+                    #coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
+                    #spiral_segment = RandomSpiralSegment(self.print, self.motion_planner, closest_border_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold, self.time_left())
+                    #cost_per_coverage = self.get_cost_per_coverage(spiral_segment)
+                    #self.print("cost_per_coverage spiral: " + str(cost_per_coverage))
+                    #if cost_per_coverage < 15000:
+                    #    self.add_segment(spiral_segment)
+                    #    best_BA_segment = spiral_segment
+                    #    self.print("COVERING WITH SPIRAL INSTEAD")
+                    #else:
+                    best_BA_segment = max(BA_segments_from_point, key=operator.attrgetter("coverage"))           
+                    #return best_BA_segment.path
+                else:
+                    #best_BA_segment = max(BA_segments_from_point, key=operator.attrgetter("coverage"))
+                    costs = [self.get_cost_per_coverage(segment) for segment in accepted_segments]
+                    #self.print(costs)
+
+                    best_BA_segment_idx = np.argmin(costs)  
+                    best_BA_segment =  accepted_segments[best_BA_segment_idx]
+                    self.add_segment(best_BA_segment)
+                    coverage = self.tmp_coverable_pcd.get_coverage_efficiency()      
+                    self.print_update(coverage)
+                    self.randombastar_stats_over_time.append({
+                        "time": timeit.default_timer() - self.start_time,
+                        "coverage": coverage,
+                        "iteration": iter,
+                        "path": best_BA_segment.path, 
+                        "segment": best_BA_segment
+                    })
+                    #return best_BA_segment.path
+                    #return best_BA_segment.path
+                self.print_segment_stats(best_BA_segment, "BA*", iter)
+                self.explored_pcd.covered_points_idx = np.unique(np.append(self.explored_pcd.covered_points_idx, best_BA_segment.covered_points_idx))
+                exploration = self.explored_pcd.get_coverage_efficiency()
+                self.print("exploration: " + str(exploration))
+                
+                
+
+            self.print("Number of found paths: " + str(len(self.all_segments)))
+
+
+            self.randombastar_stats["Part1_segments"] = len(self.all_segments)
+            self.randombastar_stats["Part1_coverage"] = coverage
+            self.randombastar_stats["Part1_iterations"] = iter
+            self.randombastar_stats["Part1_time"] = timeit.default_timer() - self.start_time
+
+            
+
+            #### PART 2 - Inward Spiral ####    
+            self.print("PART 2 - Covering with Inward spiral")
+            self.explored_pcd.covered_points_idx = self.tmp_coverable_pcd.covered_points_idx
+            
+            iter = 0
+            while coverage < goal_coverage and not self.time_limit_reached(): 
+                iter += 1
+
+                random_point = self.get_random_uncovered_point()
+                if random_point is False:
+                    break
+
+                closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
+                coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
+                spiral_segment = RandomSpiralSegment(self.print, self.motion_planner, closest_border_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold, self.time_left())
+                
+                self.print_segment_stats(spiral_segment, "Spiral", iter)
+                #self.print(self.get_cost_per_coverage(spiral_segment))
+                if self.get_cost_per_coverage(spiral_segment) > self.min_spiral_cost_per_coverage:
+
+                    close_coverable_points_idx = spiral_segment.covered_points_idx
+                    if not len(close_coverable_points_idx):
+                        close_coverable_points_idx =  self.tmp_coverable_pcd.points_idx_in_radius(closest_border_point, self.visited_threshold)
+                    self.uncovered_coverable_points_idx = self.delete_values(self.uncovered_coverable_points_idx, close_coverable_points_idx)
+                    #self.print("Too short spiral")
+                    continue
+
+
+                
+                self.add_segment(spiral_segment)
+                coverage = self.tmp_coverable_pcd.get_coverage_efficiency() 
                 self.randombastar_stats_over_time.append({
-                    "time": timeit.default_timer() - self.start_time,
-                    "coverage": coverage,
-                    "iteration": iter,
-                    "path": best_BA_segment.path, 
-                    "segment": best_BA_segment
-                })
+                        "time": timeit.default_timer() - self.start_time,
+                        "coverage": coverage,
+                        "iteration": iter,
+                        "path": spiral_segment.path,
+                        "segment": spiral_segment
+                    })
 
-            self.print_segment_stats(best_BA_segment, "BA*", iter)
-            self.explored_pcd.covered_points_idx = np.unique(np.append(self.explored_pcd.covered_points_idx, best_BA_segment.covered_points_idx))
-            exploration = self.explored_pcd.get_coverage_efficiency()
-            self.print("exploration: " + str(exploration))
+                #self.print("length: " + str(len(spiral_segment.path)))
+                self.print_update(coverage)
+                #self.print("Uncovered points: " + str(len(self.uncovered_coverable_points_idx)))
+
+            self.randombastar_stats["Part2_segments"] = len(self.all_segments) - self.randombastar_stats["Part1_segments"]
+            self.randombastar_stats["Part2_coverage"] = coverage
+            self.randombastar_stats["Part2_iterations"] = iter
+            self.randombastar_stats["Part2_time"] = timeit.default_timer() - self.start_time
             
+
+        # if False:
+            with open('cached_sampled_show.dictionary', 'wb') as cached_pcd_file:
+                cache_data = {  "all_segments": self.all_segments }
+                pickle.dump(cache_data, cached_pcd_file)
             
-
-        self.print("Number of found paths: " + str(len(self.all_segments)))
-
-
-        self.randombastar_stats["Part1_segments"] = len(self.all_segments)
-        self.randombastar_stats["Part1_coverage"] = coverage
-        self.randombastar_stats["Part1_iterations"] = iter
-        self.randombastar_stats["Part1_time"] = timeit.default_timer() - self.start_time
-
-        #### PART 2 - Inward Spiral ####    
-        self.print("PART 2 - Covering with Inward spiral")
-        self.explored_pcd.covered_points_idx = self.tmp_coverable_pcd.covered_points_idx
         
-        iter = 0
-        while coverage < goal_coverage and not self.time_limit_reached(): 
-            iter += 1
-
-            random_point = self.get_random_uncovered_point()
-            if random_point is False:
-                break
-
-            closest_border_point, _ = self.find_closest_border(random_point, self.step_size, self.visited_threshold, self.visited_waypoints)
-            coverable_pcd = PointCloud(self.print, points=self.coverable_pcd.points)
-            spiral_segment = RandomSpiralSegment(self.print, self.motion_planner, closest_border_point, self.visited_waypoints, coverable_pcd, self.max_distance_part_II, self.step_size, self.visited_threshold, self.time_left())
-            
-            self.print_segment_stats(spiral_segment, "Spiral", iter)
-            #self.print(self.get_cost_per_coverage(spiral_segment))
-            if self.get_cost_per_coverage(spiral_segment) > self.min_spiral_cost_per_coverage:
-
-                close_coverable_points_idx = spiral_segment.covered_points_idx
-                if not len(close_coverable_points_idx):
-                    close_coverable_points_idx =  self.tmp_coverable_pcd.points_idx_in_radius(closest_border_point, self.visited_threshold)
-                self.uncovered_coverable_points_idx = self.delete_values(self.uncovered_coverable_points_idx, close_coverable_points_idx)
-                #self.print("Too short spiral")
-                continue
-
-
-            
-            self.add_segment(spiral_segment)
-            coverage = self.tmp_coverable_pcd.get_coverage_efficiency() 
-            self.randombastar_stats_over_time.append({
-                    "time": timeit.default_timer() - self.start_time,
-                    "coverage": coverage,
-                    "iteration": iter,
-                    "path": spiral_segment.path,
-                    "segment": spiral_segment
-                })
-
-            #self.print("length: " + str(len(spiral_segment.path)))
-            self.print_update(coverage)
-            #self.print("Uncovered points: " + str(len(self.uncovered_coverable_points_idx)))
-
-        self.randombastar_stats["Part2_segments"] = len(self.all_segments) - self.randombastar_stats["Part1_segments"]
-        self.randombastar_stats["Part2_coverage"] = coverage
-        self.randombastar_stats["Part2_iterations"] = iter
-        self.randombastar_stats["Part2_time"] = timeit.default_timer() - self.start_time
-
+        total = np.empty((0,3))
+        for segment in self.all_segments:
+            total = np.append(total, segment.path, axis=0)
+        #return total
         paths_to_visit_in_order  = self.traveling_salesman(self.all_segments)
 
         self.follow_paths(start_point, paths_to_visit_in_order)

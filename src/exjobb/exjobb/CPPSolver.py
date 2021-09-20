@@ -37,7 +37,7 @@ class CPPSolver:
         self.motion_planner = motion_planner
         self.current_position = None
         self.path = np.empty((0,3))    
-        self.points_to_mark = np.empty((0,3))
+        self.points_to_mark = []
         self.time_limit = time_limit
         self.data_over_time = [{
             "time": 0,
