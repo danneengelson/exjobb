@@ -24,6 +24,11 @@ setup(
     entry_points={
         'console_scripts': [
             'main = exjobb.main:main',
+            'video = exjobb.video:main',
+            'video_animated = exjobb.video_animated:main',
+            'video_simple = exjobb.video_simple:main',
+            'video_show_terrain_assessment = exjobb.video_show_terrain_assessment:main',
+            'video_explain = exjobb.video_explain:main',
             'exp1 = exjobb.Experiment1:main',
             'exp2 = exjobb.Experiment2:main',
             'exp3 = exjobb.ExperimentParameter:main',
@@ -39,7 +44,8 @@ setup(
             'showastar = exjobb.ExperimentOptimalResults:main',
             'maps = exjobb.Map:main',
             'full_test = exjobb.full_test:main',
-            'results = exjobb.show_results:main' 
+            'results = exjobb.show_results:main',
+            'bfs = exjobb.test_garage_bfs:main' 
         ],
     },
 )
